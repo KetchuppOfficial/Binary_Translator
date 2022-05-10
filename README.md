@@ -2,7 +2,7 @@
 
 # Binary Translator
 
-This project is the final part of a course on programming and computer architecture by [Ilya Dedinsky aka ded32](https://github.com/ded32) that he teaches in MIPT.
+This project is the final part of a course on programming and computer architecture by [Ilya Dedinsky (aka ded32)](https://github.com/ded32) that he teaches in MIPT.
 
 ## General Information
 
