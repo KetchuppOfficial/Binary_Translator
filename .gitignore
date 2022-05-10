@@ -3,3 +3,7 @@
 *.out
 
 *.o
+
+# Not for release
+Try.c
+Try.s
