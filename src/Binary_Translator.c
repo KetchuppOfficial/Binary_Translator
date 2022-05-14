@@ -10,7 +10,7 @@ static char *Extract_Code (const char *const input, long *const max_ip)
     long n_symbs = Define_File_Size (file_ptr);
     MY_ASSERT (n_symbs > 0, "Define_File_Size ()", FUNC_ERROR, NULL);
 
-    char *code = Make_Buffer (input, n_symbs);
+    char *code = Make_Buffer (file_ptr, n_symbs);
 
     Close_File (file_ptr, input);
 
@@ -45,7 +45,10 @@ static int Check_N_Args (const int cmd_num)
 
         default:
             MY_ASSERT (false, "const int cmd_num", UNDEF_CMD, ERROR);
+            break;
     }
+
+    return 0;
 }
 
 #undef DEFCMD_
@@ -69,7 +72,10 @@ int Check_If_Push_Pop (const int cmd_num)
 
         default:
             MY_ASSERT (false, "const int cmd_num", UNDEF_CMD, ERROR);
+            break;
     }
+
+    return 0;
 }
 
 #undef DEFCMD_
@@ -97,7 +103,10 @@ static int Check_If_Jump (const int cmd_num)
 
         default:
             MY_ASSERT (false, "const int cmd_num", UNDEF_CMD, ERROR);
+            break;
     }
+
+    return 0;
 }
 
 #undef DEFCMD_
@@ -183,7 +192,7 @@ enum MATH
     add,
     sub,
     mul,
-    div
+    dvd
 };
 
 static int Translate_Math (char *x86_buffer, int *ip, enum MATH instruction)
@@ -214,7 +223,7 @@ static int Translate_Math (char *x86_buffer, int *ip, enum MATH instruction)
         case mul:
             math_instruction[2] = 0x59;     // subsd   xmm1, xmm2
             break;
-        case div:
+        case dvd:
             math_instruction[2] = 0x5E;     // subsd   xmm1, xmm2
             break;
 
@@ -223,7 +232,7 @@ static int Translate_Math (char *x86_buffer, int *ip, enum MATH instruction)
     }
 
     memcpy (x86_buffer, math_instruction, sizeof math_instruction);
-    *ip += sizeof last_part;
+    *ip += sizeof math_instruction;
 
     const char last_part[] = {
                                 0xF2, 0x0F, 0x11, 0x0C, 0x24    // movsd   qword [rsp], xmm1
@@ -235,13 +244,12 @@ static int Translate_Math (char *x86_buffer, int *ip, enum MATH instruction)
     return NO_ERRORS;
 }
 
-
-
-char *Translate (const char *const input_buff, const long max_ip)
+char *Translate (const char *const input_buff, const long max_ip, const char *const output_name)
 {
-    MY_ASSERT (input_buff, "const char *const input buff",  NULL_PTR, NULL);
+    MY_ASSERT (input_buff,  "const char *const input buff",  NULL_PTR, NULL);
+    MY_ASSERT (output_name, "const char *const output_name", NULL_PTR, NULL);
 
-    FILE *file_ptr = Open_File (output, "wb");
+    FILE *file_ptr = Open_File (output_name, "wb");
 
     int n_labels = 0;
     char *label_arr = First_Passing (input_buff, max_ip, &n_labels);
@@ -255,17 +263,20 @@ char *Translate (const char *const input_buff, const long max_ip)
     char *x86_buffer = (char *)calloc (max_ip, sizeof (char));
     MY_ASSERT (x86_buffer, "char *x86_buffer", NE_MEM, NULL);
 
+#if 0
     int ret_val = Second_Passing (input_buff, max_ip, label_arr, n_labels);
     MY_ASSERT (ret_val != ERROR, "Second_Passing ()", FUNC_ERROR, NULL);
+#endif
 
     free (label_arr);
 
-    Close_File (file_ptr, output);
+    Close_File (file_ptr, output_name);
 
     return x86_buffer;
 }
 
 #if 0
+
 #define DEFCMD_(num, name, n_args, code)                                                    \
 case num:                                                                                   \
     if (Check_N_Args (num) == 0)                                                            \
