@@ -155,8 +155,8 @@ Look [here](src/Std_Lib.s) for more details
 
     NASM:
 
-        mov     rdi, (number: hex, 8 bytes)     // register is used because
-        push    rdi                             // there is no imm64
+        mov     rdi, (number: hex, 8 bytes)
+        push    rdi
 
     x86-64 OPCODES:
 
