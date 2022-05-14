@@ -161,6 +161,7 @@ Look [here](src/Std_Lib.s) for more details
     x86-64 OPCODES:
 
         0x48 0xBF (number: hex, 8 bytes)
+        0x57
 
 
 ### push ["number"]
