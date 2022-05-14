@@ -8,10 +8,10 @@ int main (int argc, char *argv[])
     }
     else
     {
-        #if DEBUG == 1
-        int ret_val = Translate (argv[1], argv[2]);
-        #elif DEBUG == 0
-        Translate (argv[1], argv[2]);
+        #ifdef DEBUG
+        int ret_val = Binary_Translator (argv[1], argv[2]);
+        #else
+        Binary_Translator (argv[1], argv[2]);
         #endif
 
         MY_ASSERT (ret_val != ERROR, "Translate ()", FUNC_ERROR, ERROR);
