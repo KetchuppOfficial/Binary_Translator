@@ -1,9 +1,14 @@
+# Service files
+
 *.txt
 
 *.out
 
 *.o
 
+*.d
+
 # Not for release
+
 Try.c
 Try.s
