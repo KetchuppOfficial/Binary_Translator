@@ -3,14 +3,13 @@
 
 #include "../../../My_Lib/My_Lib.h"
 #include <inttypes.h>
+#include <string.h>
 
-#define DEBUG 1
-
-#if DEBUG == 0
+#ifndef DEBUG
 #undef MY_ASSERT
 #define MY_ASSERT(condition, var, err_num, error) ;
 #endif
 
-int Translate (const char *const input, const char *const output);
+int Binary_Translator (const char *const input, const char *const output);
 
 #endif
