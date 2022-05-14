@@ -10,10 +10,7 @@ static char *Extract_Code (const char *const input, long *const max_ip)
     long n_symbs = Define_File_Size (file_ptr);
     MY_ASSERT (n_symbs > 0, "Define_File_Size ()", FUNC_ERROR, NULL);
 
-    char *code = (char *)calloc (n_symbs, sizeof (char));
-    MY_ASSERT (code, "char *code", NE_MEM, NULL);
-
-    fread (code, sizeof (char), n_symbs, file_ptr);
+    char *code = Make_Buffer (input, n_symbs);
 
     Close_File (file_ptr, input);
 
@@ -35,63 +32,128 @@ int Binary_Translator (const char *const input, const char *const output)
     return NO_ERRORS;
 }
 
-int Translate (const char *const input_buff, const long max_ip, const char *const output)
-{
-    MY_ASSERT (input_buff, "const char *const input buff",  NULL_PTR, ERROR);
+//***************************************************************
+#define DEFCMD_(num, name, n_args, code)    \
+case num:                                   \
+    return n_args;
 
-    FILE *file_ptr = Open_File (output, "wb");
+static int Check_N_Args (const int cmd_num)
+{           
+    switch (cmd_num)
+    {
+        #include "../include/Commands_List.h"
 
-    int n_labels = 0;
-    char *label_arr = First_Passing (input_buff, max_ip, &n_labels);
-    MY_ASSERT (label_arr, "First_Passing ()", FUNC_ERROR, ERROR);
-
-    for (int i = 0; i < n_labels - 1; i++)
-        for (int j = i + 1; j < n_labels; j++)
-            if (label_arr[i] == label_arr[j])
-                label_arr[i] = 0;
-
-    int ret_val = Second_Passing (input_buff, max_ip, label_arr, n_labels);
-    MY_ASSERT (ret_val != ERROR, "Second_Passing ()", FUNC_ERROR, ERROR);
-
-    free (label_arr);
-
-    Close_File (file_ptr, output);
-
-    return NO_ERRORS;
+        default:
+            MY_ASSERT (false, "const int cmd_num", UNDEF_CMD, ERROR);
+    }
 }
 
-#define DEFCMD_(num, name, n_args, code)                                            \
-case num:                                                                           \
-    if (Check_N_Args (num) == 0)                                                    \
-        ip++;                                                                       \
-    else if (Check_If_Push_Pop (num) == 1)                                          \
-    {                                                                               \
-        ip++;                                                                       \
-        if (code_arr[ip] == 1 && code_arr[ip + 1] != 0 && code_arr[ip + 2] == 1)    \
-            ip += (3 + sizeof (int));                                               \
-        if (code_arr[ip] == 1 && code_arr[ip + 1] != 0 && code_arr[ip + 2] == 0)    \
-            ip += 3;                                                                \
-        if (code_arr[ip] == 1 && code_arr[ip + 1] == 0 && code_arr[ip + 2] == 1)    \
-            ip += (3 + sizeof (int));                                               \
-        if (code_arr[ip] == 0 && code_arr[ip + 1] != 0 && code_arr[ip + 2] == 0)    \
-            ip += 3;                                                                \
-        if (code_arr[ip] == 0 && code_arr[ip + 1] == 0 && code_arr[ip + 2] == 1)    \
-            ip += (3 + sizeof (double));                                            \
-        if (code_arr[ip] == 0 && code_arr[ip + 1] == 0 && code_arr[ip + 2] == 0)    \
-            ip += 3;                                                                \
-    }                                                                               \
-    else if (Check_If_Jump (num) == 1)                                              \
-    {                                                                               \
-        ip++;                                                                       \
-        label_arr[label_i++] = *(int *)(code_arr + ip);                             \
-        ip += sizeof (int);                                                         \
-    }                                                                               \
-    else                                                                            \
-        ip += 1 + sizeof (double);                                                  \
-                                                                                    \
+#undef DEFCMD_
+//***************************************************************
+
+//***************************************************************
+#define DEFCMD_(num, name, n_args, code)    \
+case num:                                   \
+    if (strcmp (#name, "push") == 0 ||      \
+        strcmp (#name, "pop")  == 0)        \
+        return 1;                           \
+    else                                    \
+        return 0;
+
+
+int Check_If_Push_Pop (const int cmd_num)
+{
+    switch (cmd_num)
+    {
+        #include "../include/Commands_List.h"
+
+        default:
+            MY_ASSERT (false, "const int cmd_num", UNDEF_CMD, ERROR);
+    }
+}
+
+#undef DEFCMD_
+//***************************************************************
+
+//***************************************************************
+#define DEFCMD_(num, name, n_args, code)    \
+case num:                                   \
+    if (strcmp ("jae",  #name)  == 0 ||     \
+        strcmp ("jbe",  #name)  == 0 ||     \
+        strcmp ("ja",   #name)  == 0 ||     \
+        strcmp ("jb",   #name)  == 0 ||     \
+        strcmp ("ja",   #name)  == 0 ||     \
+        strcmp ("je",   #name)  == 0 ||     \
+        strcmp ("call", #name)  == 0)       \
+        return 1;                           \
+    else                                    \
+        return 0;
+
+static int Check_If_Jump (const int cmd_num)
+{
+    switch (cmd_num)
+    {
+        #include "../include/Commands_List.h"
+
+        default:
+            MY_ASSERT (false, "const int cmd_num", UNDEF_CMD, ERROR);
+    }
+}
+
+#undef DEFCMD_
+//***************************************************************
+
+#define DEFCMD_(num, name, n_args, code)                                                \
+case num:                                                                               \
+    if (Check_N_Args (num) == 0)                                                        \
+        ip++;                                                                           \
+    else if (Check_If_Push_Pop (num) == 1)                                              \
+    {                                                                                   \
+        ip++;                                                                           \
+        int checksum = code_arr[ip] + 10 * code_arr[ip + 1] + 100 * code_arr[ip + 2];   \
+                                                                                        \
+        switch (checksum)                                                               \
+        {                                                                               \
+            case 101:                                                                   \
+            case 111:                                                                   \
+            case 121:                                                                   \
+            case 131:                                                                   \
+            case 141:                                                                   \
+                ip += (3 + sizeof (int));                                               \
+                break;                                                                  \
+            case   0:                                                                   \
+            case  10:                                                                   \
+            case  20:                                                                   \
+            case  30:                                                                   \
+            case  40:                                                                   \
+            case 110:                                                                   \
+            case 120:                                                                   \
+            case 130:                                                                   \
+            case 140:                                                                   \
+                ip += 3;                                                                \
+                break;                                                                  \
+                                                                                        \
+            case   1:                                                                   \
+                ip += (3 + sizeof (double));                                            \
+                break;                                                                  \
+                                                                                        \
+            default:                                                                    \
+                MY_ASSERT (false, "int checksum", UNEXP_VAL, NULL);                     \
+                break;                                                                  \
+        }                                                                               \
+    }                                                                                   \
+    else if (Check_If_Jump (num) == 1)                                                  \
+    {                                                                                   \
+        ip++;                                                                           \
+        label_arr[label_i++] = *(int *)(code_arr + ip);                                 \
+        ip += sizeof (int);                                                             \
+    }                                                                                   \
+    else                                                                                \
+        ip += 1 + sizeof (double);                                                      \
+                                                                                        \
     break;                                                              
 
-char *First_Passing (const char *code_arr, const int max_ip, int *n_labels)
+static char *First_Passing (const char *code_arr, const int max_ip, int *n_labels)
 {
     MY_ASSERT (code_arr, "const char *code_arr", NULL_PTR, NULL);
 
@@ -116,99 +178,94 @@ char *First_Passing (const char *code_arr, const int max_ip, int *n_labels)
 }
 #undef DEFCMD_
 
-static void Translate_Add (char *buffer, int *ip)
+enum MATH
 {
-    return;
+    add,
+    sub,
+    mul,
+    div
+};
+
+static int Translate_Math (char *x86_buffer, int *ip, enum MATH instruction)
+{
+    const char first_part[] = {
+                                0xF2, 0x0F, 0x10, 0x4C, 0x24, 0x08,     // movsd   xmm1, qword [rsp + 8]
+                                0xF2, 0x0F, 0x10, 0x14, 0x24,           // movsd   xmm2, qword [rsp]
+                                0x48, 0x83, 0xC4, 0x08                  // add     rsp, 8
+                              };
+
+    memcpy (x86_buffer, first_part, sizeof first_part);
+    *ip += sizeof first_part;
+    
+    char math_instruction[] = {0xF2, 0x0F, 0x00, 0xCA};
+    //                                       |
+    //                                       |
+    //                                       |
+    //           this byte will be changed --+
+
+    switch (instruction)
+    {
+        case add:
+            math_instruction[2] = 0x58;     // addsd   xmm1, xmm2
+            break;
+        case sub:
+            math_instruction[2] = 0xCA;     // subsd   xmm1, xmm2
+            break;
+        case mul:
+            math_instruction[2] = 0x59;     // subsd   xmm1, xmm2
+            break;
+        case div:
+            math_instruction[2] = 0x5E;     // subsd   xmm1, xmm2
+            break;
+
+        default:
+            MY_ASSERT (false, "enum MATH instruction", UNEXP_VAL, ERROR);
+    }
+
+    memcpy (x86_buffer, math_instruction, sizeof math_instruction);
+    *ip += sizeof last_part;
+
+    const char last_part[] = {
+                                0xF2, 0x0F, 0x11, 0x0C, 0x24    // movsd   qword [rsp], xmm1
+                             };
+
+    memcpy (x86_buffer, last_part, sizeof last_part);
+    *ip += sizeof last_part;
+
+    return NO_ERRORS;
 }
 
-static void Translate_Sub (char *buffer, int *ip)
-{
-    return;
-}
 
-static void Translate_Mul (char *buffer, int *ip)
-{
-    return;
-}
 
-static void Translate_Div (char *buffer, int *ip)
+char *Translate (const char *const input_buff, const long max_ip)
 {
-    return;
+    MY_ASSERT (input_buff, "const char *const input buff",  NULL_PTR, NULL);
+
+    FILE *file_ptr = Open_File (output, "wb");
+
+    int n_labels = 0;
+    char *label_arr = First_Passing (input_buff, max_ip, &n_labels);
+    MY_ASSERT (label_arr, "First_Passing ()", FUNC_ERROR, NULL);
+
+    for (int i = 0; i < n_labels - 1; i++)
+        for (int j = i + 1; j < n_labels; j++)
+            if (label_arr[i] == label_arr[j])
+                label_arr[i] = 0;
+
+    char *x86_buffer = (char *)calloc (max_ip, sizeof (char));
+    MY_ASSERT (x86_buffer, "char *x86_buffer", NE_MEM, NULL);
+
+    int ret_val = Second_Passing (input_buff, max_ip, label_arr, n_labels);
+    MY_ASSERT (ret_val != ERROR, "Second_Passing ()", FUNC_ERROR, NULL);
+
+    free (label_arr);
+
+    Close_File (file_ptr, output);
+
+    return x86_buffer;
 }
 
 #if 0
-//***************************************************************
-#define DEFCMD_(num, name, n_args, code)    \
-do                                          \
-{                                           \
-    if (cmd_n == num)                       \
-        return n_args;                      \
-}                                           \
-while (0)
-
-int Check_N_Args (const int cmd_n)
-{           
-    #include "../Commands_List.h"
-
-    return 0;
-}
-#undef DEFCMD_
-//***************************************************************
-
-
-//***************************************************************
-#define DEFCMD_(num, name, n_args, code)        \
-do                                              \
-{                                               \
-    if (cmd_num == num)                         \
-    {                                           \
-        if (strcmp ("jae",  #name)  == 0 ||     \
-            strcmp ("jbe",  #name)  == 0 ||     \
-            strcmp ("ja",   #name)  == 0 ||     \
-            strcmp ("jb",   #name)  == 0 ||     \
-            strcmp ("ja",   #name)  == 0 ||     \
-            strcmp ("je",   #name)  == 0 ||     \
-            strcmp ("call", #name)  == 0)       \
-            return 1;                           \
-        else                                    \
-            return 0;                           \
-    }                                           \
-}                                               \
-while (0)
-
-int Check_If_Jump (const int cmd_num)
-{
-    #include "../Commands_List.h"
-
-    MY_ASSERT (false, "const int cmd_num", UNDEF_CMD, ERROR);
-}
-#undef DEFCMD_
-//***************************************************************
-
-//***************************************************************
-#define DEFCMD_(num, name, n_args, code)        \
-do                                              \
-{                                               \
-    if (num == cmd_num)                         \
-    {                                           \
-        if (strcmp (#name, "push") == 0 ||      \
-            strcmp (#name, "pop")  == 0)        \
-            return 1;                           \
-        else                                    \
-            return 0;                           \
-    }                                           \
-}                                               \
-while (0)
-
-int Check_If_Push_Pop (const int cmd_num)
-{
-    #include "../Commands_List.h"
-
-    MY_ASSERT (false, "const int cmd_num", UNDEF_CMD, ERROR);
-}
-#undef DEFCMD_
-//***************************************************************
-
 #define DEFCMD_(num, name, n_args, code)                                                    \
 case num:                                                                                   \
     if (Check_N_Args (num) == 0)                                                            \
