@@ -1,30 +1,45 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -Werror -Wshadow -Wfloat-equal -Wswitch-default
+CC     = gcc
+CFLAGS = -Wall -Werror -Wshadow -Wfloat-equal -Wswitch-default
 
 DEBUG = -g
 
-SRC = src/
-BIN = bin/
+MY_LIB  = ~/Programming/My_Lib/My_Lib.a
 
-OBJECTS = main.o Binary_Translator.o
-MY_LIB  = ../../My_Lib/My_Lib.a
+BIN      = ./bin/
+SRCDIR   = ./src/
+BUILDDIR = ./build/
 
-all: Binary_Translator
+SRC_LIST = main.c Binary_Translator.c #ELF_Generator.c 
+SRC = $(addprefix $(SRCDIR),$(SRC_LIST))
 
-Binary_Translator: $(OBJECTS)
-	$(CC) $(BIN)main.o $(BIN)Binary_Translator.o $(MY_LIB) -o $(BIN)Binary_Translator.out
-	rm $(BIN)*.o
+SUBS := $(SRC)
+SUBS := $(subst $(SRCDIR), $(BUILDDIR), $(SUBS))
 
-main.o:
-	$(CC) $(DEBUG) $(CFLAGS) -c $(SRC)main.c -o $(BIN)main.o
+OBJ  = $(SUBS:.c=.o)
+DEPS = $(SUBS:.c=.d)
 
-Binary_Translator.o:
-	$(CC) $(DEBUG) $(CFLAGS) -c $(SRC)Binary_Translator.c -o $(BIN)Binary_Translator.o
+.PHONY: all
+all: $(DEPS) $(OBJ)
+	@mkdir -p $(BIN)
+	@echo "Linking project..."
+	@$(CC) $(OBJ) $(SHA_LIB) $(MY_LIB) -o $(BIN)Binary_Translator.out
+
+$(BUILDDIR)%.o: $(SRCDIR)%.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling \"$<\"..."
+	@$(CC) $(CFLAGS) $(DBG) $(OPT) -c $< -o $@
+
+include $(DEPS)
+
+$(BUILDDIR)%.d: $(SRCDIR)%.c
+	@echo "Collecting dependencies for \"$<\"..."
+	@mkdir -p $(dir $@)
+	@$(CC) -E $(CFLAGS) $< -MM -MT $(@:.d=.o) > $@
+
+.PHONY: run clean
+
+clean:
+	rm -rf $(OBJ) $(DEPS)
 
 run:
 	$(BIN)Binary_Translator.out $(IN) $(OUT)
-
-clean:
-	rm -rf *.o
-	rm -rf *.out
-	rm -rf *.log
