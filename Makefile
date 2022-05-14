@@ -41,5 +41,7 @@ $(BUILDDIR)%.d: $(SRCDIR)%.c
 clean:
 	rm -rf $(OBJ) $(DEPS)
 
-run:
-	$(BIN)Binary_Translator.out $(IN) $(OUT)
+run: $(BIN)Binary_Translator.out
+	@echo "Running \"$<\"..."
+	@$(BIN)Binary_Translator.out $(IN) $(OUT)
+	@echo "Completed"
