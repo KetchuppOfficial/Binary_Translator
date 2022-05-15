@@ -40,6 +40,7 @@ struct Jump
 {
     int from;
     int to;
+    int x86_from;
 };
 
 struct Bin_Tr
@@ -90,7 +91,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                 if (code_arr[ip] == call || code_arr[ip] == jmp)
                     bin_tr->x86_max_ip += 5;    // look in Commands.md
                 else
-                    bin_tr->x86_max_ip += 11;   // look in Commands.md (11 = max (7, 11))
+                    bin_tr->x86_max_ip += 11;   // look in Commands.md
 
                 break;
             }
@@ -151,7 +152,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                     case RAM_BX_NUM:
                     case RAM_CX_NUM:
                     case RAM_DX_NUM:
-                        bin_tr->x86_max_ip += 8;    // look in Commands.md (8 = max (5, 8))
+                        bin_tr->x86_max_ip += 8;    // look in Commands.md
                         ip += 3 + sizeof (int);
                         break;
 
@@ -397,43 +398,31 @@ static inline int Translate_Push_RAM_Reg_Num (char *const x86_buffer, int *const
                         0x00, 0x00, 0x00, 0x00, // num (1 or 4 bytes)
                         0x57                    // push rdi
                     }; 
-           
     
     switch (reg)
     {
         case ax:
-            opcode[2] = (-128 <= num && num <= 127) ? 0x78 : 0xB8;      // rax
+            opcode[2] = 0xB8;      // rax
             break;
         case bx:
-            opcode[2] = (-128 <= num && num <= 127) ? 0x7B : 0xBB;      // rbx
+            opcode[2] = 0xBB;      // rbx
             break;
         case cx:
-            opcode[2] = (-128 <= num && num <= 127) ? 0x79 : 0xB9;      // rcx
+            opcode[2] = 0xB9;      // rcx
             break;
         case dx:
-            opcode[2] = (-128 <= num && num <= 127) ? 0x7A : 0xBA;      // rdx
+            opcode[2] = 0xBA;      // rdx
             break;
 
         default:
             MY_ASSERT (false, "enum Registers reg", UNEXP_VAL, ERROR);  
             break;
     }
-    
-    if (-128 <= num && num <= 127)
-    {
-        opcode[3] = (char)num;
-        opcode[4] = 0x57;       // push rdi
 
-        memcpy (x86_buffer + *x86_ip, opcode, 5);
-        *x86_ip += 5;
-    }
-    else
-    {
-        *(int *)(opcode + 3) = num;
+    *(int *)(opcode + 3) = num;
 
-        memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
-        *x86_ip += sizeof opcode;
-    }
+    memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
+    *x86_ip += sizeof opcode;
 
     return NO_ERRORS;
 }
@@ -443,23 +432,22 @@ static inline int Translate_Pop_RAM_Reg_Num (char *const x86_buffer, int *const 
     char opcode[] = {
                         0x5F,                   // pop rdi
                         0x48, 0x89, 0x00,       // mov rdi, qword [r?x + num]
-                        0x00, 0x00, 0x00, 0x00, // num (1 or 4 bytes)
+                        0x00, 0x00, 0x00, 0x00, // num
                     }; 
-           
-    
+
     switch (reg)
     {
         case ax:
-            opcode[3] = (-128 <= num && num <= 127) ? 0x78 : 0xB8;      // rax
+            opcode[3] = 0xB8;      // rax
             break;
         case bx:
-            opcode[3] = (-128 <= num && num <= 127) ? 0x7B : 0xBB;      // rbx
+            opcode[3] = 0xBB;      // rbx
             break;
         case cx:
-            opcode[3] = (-128 <= num && num <= 127) ? 0x79 : 0xB9;      // rcx
+            opcode[3] = 0xB9;      // rcx
             break;
         case dx:
-            opcode[3] = (-128 <= num && num <= 127) ? 0x7A : 0xBA;      // rdx
+            opcode[3] = 0xBA;      // rdx
             break;
 
         default:
@@ -467,20 +455,10 @@ static inline int Translate_Pop_RAM_Reg_Num (char *const x86_buffer, int *const 
             break;
     }
     
-    if (-128 <= num && num <= 127)
-    {
-        opcode[4] = (char)num;
+    *(int *)(opcode + 4) = num;
 
-        memcpy (x86_buffer + *x86_ip, opcode, 5);
-        *x86_ip += 5;
-    }
-    else
-    {
-        *(int *)(opcode + 4) = num;
-
-        memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
-        *x86_ip += sizeof opcode;
-    }
+    memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
+    *x86_ip += sizeof opcode;
 
     return NO_ERRORS;
 }
@@ -546,14 +524,6 @@ int Second_Passing (struct Bin_Tr *const bin_tr, const struct Jump *const jumps_
     
     for (int ip = 0, x86_ip = 0; ip < max_ip; )
     {
-        #if 0
-        for (int i = 0; i <= n_jumps; i++)
-        {
-            if (jumps_arr[i] == ip && jumps_arr[i] != 0)
-                fprintf (file_ptr, "%d:\n", jumps_arr[i]);
-        }
-        #endif
-
         switch (code_arr[ip])
         {
             case hlt:
@@ -562,6 +532,10 @@ int Second_Passing (struct Bin_Tr *const bin_tr, const struct Jump *const jumps_
                 break;
             
             case call:
+                ip += 1 + sizeof (int);
+                break;
+
+            case jmp:
                 ip += 1 + sizeof (int);
                 break;
             
