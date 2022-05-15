@@ -12,7 +12,7 @@
         xor     rdi, rdi
         syscall
 
-    x86-64 OPCODE:
+    x86-64 OPCODE:  10 bytes
 
         0xB8 0x3C 0x00 0x00 0x00
         0x48 0x31 0xFF
@@ -28,7 +28,7 @@
 
         call    "procedure"
 
-    x86-64 OPCODE:
+    x86-64 OPCODE:  1 byte
 
         int shift = x86_ip - x86_proc_ip;
         
@@ -45,7 +45,7 @@
 
         jmp     "label"
 
-    x86-64 OPCODE:
+    x86-64 OPCODE:  2 or 5 bytes
 
         int shift = x86_ip - x86_ip_to_jump;
 
@@ -81,7 +81,7 @@
         cmp     rdi, rsi
         je      "label"
 
-    x86-64 OPCODE:
+    x86-64 OPCODE:  7 or 11 bytes
 
         0x5E
         0x5F
@@ -122,7 +122,7 @@
 
         ret
 
-    x86-64 OPCODE:
+    x86-64 OPCODE:  1 byte
 
         0xC3
 
@@ -158,7 +158,7 @@ Look [here](src/Std_Lib.s) for more details
         mov     rdi, (number: hex, 8 bytes)
         push    rdi
 
-    x86-64 OPCODES:
+    x86-64 OPCODES:     11 bytes
 
         0x48 0xBF (number: hex, 8 bytes)
         0x57
@@ -175,7 +175,7 @@ Look [here](src/Std_Lib.s) for more details
         mov     rdi, qword ["number"]
         push    rdi
 
-    x86-64 OPCODES:
+    x86-64 OPCODES:     9 bytes
 
         if (0 <= number && number <= 2147483647)
         {
@@ -200,7 +200,7 @@ Look [here](src/Std_Lib.s) for more details
 
         push    rax
 
-    x86-64 OPCODES:
+    x86-64 OPCODES:     1 byte
 
         0x50                    // rax
         0x53                    // rbx
@@ -220,7 +220,7 @@ Look [here](src/Std_Lib.s) for more details
         mov     rdi, qword [rax] 
         push    rdi
 
-    x86-64 OPCODES:
+    x86-64 OPCODES:     4 bytes
 
         0x48 0x8B 0x38          // rax
         ...  ...  0x3B          // rbx
@@ -243,7 +243,7 @@ Look [here](src/Std_Lib.s) for more details
         mov     rdi, qword [rax + "number"]
         push    rdi
 
-    x86-64 OPCODES:
+    x86-64 OPCODES:     5 or 8 bytes
 
         if (-128 <= number && number <= 127)
         {
@@ -284,7 +284,7 @@ Look [here](src/Std_Lib.s) for more details
 
         pop     rdi
 
-    x86-64 OPCODE:
+    x86-64 OPCODE:      1 byte
 
         0x5F
 
@@ -299,7 +299,7 @@ Look [here](src/Std_Lib.s) for more details
         pop     rdi
         mov     ["number"], rdi
 
-    x86-64 OPCODES:
+    x86-64 OPCODES:     9 bytes
 
         if (0 <= number && number <= 2147483647)
         {
@@ -324,7 +324,7 @@ Look [here](src/Std_Lib.s) for more details
 
         pop     rax
 
-    x86-64 OPCODES:
+    x86-64 OPCODES:     1 byte
 
         0x58                    // rax
         0x5B                    // rbx
@@ -343,7 +343,7 @@ Look [here](src/Std_Lib.s) for more details
         pop     rdi
         mov     [rax], rdi
 
-    x86-64 OPCODES:
+    x86-64 OPCODES:     4 bytes
 
         0x5F
         
@@ -366,7 +366,7 @@ Look [here](src/Std_Lib.s) for more details
         pop     rdi
         mov     [rax + "number"], rdi
 
-    x86-64 OPCODES:
+    x86-64 OPCODES:     5 or 8 bytes
 
         if (-128 <= number && number <= 127)
         {
@@ -386,8 +386,6 @@ Look [here](src/Std_Lib.s) for more details
             ...  ...  0xBB          ...             // rbx
             ...  ...  0xB9          ...             // rcx
             ...  ...  0xBA          ...             // rdx
-
-            0x57
         }
         else
         {
@@ -416,7 +414,7 @@ Look [here](src/Std_Lib.s) for more details
 
         movsd   qword [rsp], xmm1
 
-    x86-64 OPCODES:
+    x86-64 OPCODES:     24 bytes
 
         0xF2 0x0F 0x10 0x4C 0x24 0x08
         0xF2 0x0F 0x10 0x14 0x24
