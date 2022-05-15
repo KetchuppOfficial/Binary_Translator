@@ -28,7 +28,7 @@
 
         call    "procedure"
 
-    x86-64 OPCODE:  1 byte
+    x86-64 OPCODE:  5 byte
 
         int shift = x86_ip - x86_proc_ip;
         
