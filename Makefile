@@ -1,4 +1,4 @@
-CC     = gcc
+CC     = gcc -std=c17
 CFLAGS = -Wall -Werror -Wshadow -Wfloat-equal -Wswitch-default
 
 DEBUG = -g
@@ -27,7 +27,7 @@ all: $(DEPS) $(OBJ)
 $(BUILDDIR)%.o: $(SRCDIR)%.c
 	@mkdir -p $(dir $@)
 	@echo "Compiling \"$<\"..."
-	@$(CC) $(CFLAGS) $(DBG) $(OPT) -c $< -o $@
+	@$(CC) $(CFLAGS) $(DEBUG) $(OPT) -c $< -o $@
 
 include $(DEPS)
 
