@@ -4,6 +4,7 @@
 #include "../../../My_Lib/My_Lib.h"
 #include <inttypes.h>
 #include <string.h>
+#include <sys/mman.h>   // for mprotect ()
 
 #ifndef DEBUG
 #undef MY_ASSERT
