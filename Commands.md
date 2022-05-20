@@ -91,6 +91,7 @@
         int shift = x86_ip - x86_ip_to_jump;
 
 ## ret: 
+
     MY ASSEMBLER:
 
         0x09
@@ -105,6 +106,7 @@
 
 ## in: 
     MY ASSEMBLER:
+
         0x0A
 
     IMPLEMENTED EXTERNALLY
@@ -112,7 +114,9 @@
 Look [here](src/Std_Lib.s) for more details
 
 ## out:
+
     MY ASSEMBLER:
+
         0x0B
 
     IMPLEMENTED EXTERNALLY
@@ -122,6 +126,7 @@ Look [here](src/Std_Lib.s) for more details
 ## push:
 
 ### General form in my assembler:
+
     0x0C "if_ram" "reg_num" "if_num" (number)
 
 ### push "number"
@@ -224,6 +229,7 @@ Look [here](src/Std_Lib.s) for more details
 ## pop:
 
 ### General form in my assembler:
+
     0x0D "if_ram" "reg_num" "if_num" (num)
 
 ### pop
@@ -277,12 +283,14 @@ Look [here](src/Std_Lib.s) for more details
         0x5A                    // rdx
 
 ### pop ["register"]
+
     MY ASSEMBLER:
 
         0x0D 0x01 0x01 0x00     // pop [ax]
         ...  ...  0x02 ...      // pop [bx]
         ...  ...  0x03 ...      // pop [cx]
         ...  ...  0x04 ...      // pop [dx]
+
     NASM:
 
         pop     rdi
@@ -329,7 +337,7 @@ Look [here](src/Std_Lib.s) for more details
         0x10                            // mul
         0x11                            // div
 
-    NASM and x86-64 opcodes:
+    NASM:
 
         movsd   xmm1, qword [rsp + 8]
         movsd   xmm2, qword [rsp]
@@ -353,4 +361,23 @@ Look [here](src/Std_Lib.s) for more details
         ...  ...  0x59 ...              // mul
         ...  ...  0x5E ...              // div
 
+        0xF2 0x0F 0x11 0x0C 0x24
+
+
+## Sqrt
+
+    MY_ASEMBLER:
+
+        0x12
+
+    NASM:
+
+        movsd   xmm0, qword [rsp]
+        sqrtpd  xmm0, xmm0
+        movsd   qword [rsp], xmm1
+
+    x86-64 OPCODES:     14 bytes
+
+        0xF2 0x0F 0x10 0x04 0x24
+        0x66 0x0F 0x51 0xC0
         0xF2 0x0F 0x11 0x0C 0x24
