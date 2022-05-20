@@ -33,3 +33,5 @@ DEFCMD_(15, sub,  0)
 DEFCMD_(16, mul,  0)
 
 DEFCMD_(17, dvd,  0)
+
+DEFCMD_(18, sqrt, 0)
