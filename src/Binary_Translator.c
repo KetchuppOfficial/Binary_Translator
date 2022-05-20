@@ -779,7 +779,7 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
 
     while (ip < max_ip)
     {
-        if (ip == jumps_arr[jump_i].to)
+        while (ip == jumps_arr[jump_i].to)
         {
             int x86_from = jumps_arr[jump_i].x86_from;
 
@@ -787,7 +787,6 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
             {
                 case call:
                 case jmp:
-                    printf ("x86_ip = %d\n", x86_ip);
                     *(int *)(x86_buff + x86_from + 1) = x86_ip - x86_from;
                     break;
                 case jae:
@@ -926,7 +925,7 @@ static int Translate (struct Bin_Tr *const bin_tr)
     struct Jump *jumps_arr = First_Passing (bin_tr, &n_jumps);
     MY_ASSERT ((n_jumps == 0 && jumps_arr == NULL) || (n_jumps > 0 && jumps_arr != NULL), "First_Passing ()", FUNC_ERROR, ERROR);
 
-    #if 1
+    #if 0
     for (int i = 0; i < n_jumps; i++)
         printf ("TYPE: %X\n"
                 "from: %d\n"
