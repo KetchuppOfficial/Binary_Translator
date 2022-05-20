@@ -182,6 +182,11 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                 ip++;
                 break;
 
+            case sqrt:
+                x86_ip += 14;   // look in Commands.md
+                ip++;
+                break;
+
             default: MY_ASSERT (false, "code_arr[ip]", UNDEF_CMD, NULL);
         }
     }
@@ -534,7 +539,7 @@ static inline int Translate_Pop_RAM_Reg_Num (char *const x86_buffer, int *const 
     return NO_ERRORS;
 }
 
-static int Translate_Math (char *const x86_buffer, int *const x86_ip, const enum Instructions instruction)
+static int Translate_Arithmetics (char *const x86_buffer, int *const x86_ip, const enum Instructions instruction)
 {
     const char first_part[] = {
                                 0xF2, 0x0F, 0x10, 0x4C, 0x24, 0x08,     // movsd   xmm1, qword [rsp + 8]
@@ -576,13 +581,37 @@ static int Translate_Math (char *const x86_buffer, int *const x86_ip, const enum
     Put_In_x86_Buffer (x86_buffer, x86_ip, last_part, sizeof last_part);
 
     return NO_ERRORS;
-}           
+}
+
+static void Translate_Sqrt (char *const x86_buffer, int *const x86_ip)
+{
+    const char opcode[] = {
+                            0xF2, 0x0F, 0x10, 0x04, 0x24,   // movsd   xmm0, qword [rsp]
+                            0x66, 0x0F, 0x51, 0xC0,         // sqrtpd  xmm0, xmm0
+                            0xF2, 0x0F, 0x11, 0x0C, 0x24    // movsd   qword [rsp], xmm1
+                          };
+    
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
+}
+
+#define PAGE_SIZE 4096
+static void *aligned_calloc (const size_t n_elems, const size_t one_elem_size)
+{
+    size_t new_size = ((n_elems * one_elem_size >> 12) + 1) << 12;     // 2^12 = 4096 - page size in Linux
+    
+    void *array = aligned_alloc (PAGE_SIZE, new_size);
+
+    memset (array, 0, new_size);
+
+    return array;
+}
+#undef PAGE_SIZE
 
 int Second_Passing (struct Bin_Tr *const bin_tr)
 {
     MY_ASSERT (bin_tr, "struct Bin_Tr *const bin_tr", NULL_PTR, ERROR);
-
-    bin_tr->x86_buff = (char *)calloc (bin_tr->x86_max_ip, sizeof (char));
+    
+    bin_tr->x86_buff = (char *)aligned_calloc (bin_tr->x86_max_ip, sizeof (char *));
     MY_ASSERT (bin_tr->x86_buff, "bin_tr->x86_buffer", NE_MEM, ERROR);
 
     const char *code_arr   = bin_tr->input_buff;
@@ -734,7 +763,12 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
             case sub:
             case mul:
             case dvd:
-                Translate_Math (x86_buffer, &x86_ip, code_arr[ip]);
+                Translate_Arithmetics (x86_buffer, &x86_ip, code_arr[ip]);
+                ip++;
+                break;
+
+            case sqrt:
+                Translate_Sqrt (x86_buffer, &x86_ip);
                 ip++;
                 break;
 
@@ -908,6 +942,11 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
                 ip++;
                 break;
 
+            case sqrt:
+                x86_ip += 14;   // look in Commands.md
+                ip++;
+                break;
+
             default: MY_ASSERT (false, "code_arr[ip]", UNDEF_CMD, ERROR);
         }
 
@@ -989,6 +1028,9 @@ int Binary_Translator (const char *const input_name, const char *const output_na
     #if 0
     Generate_ELF (output_buff, output);
     #endif
+
+    int mprotect_res = mprotect (bin_tr.x86_buff, bin_tr.x86_max_ip, PROT_EXEC);
+    printf ("%d\n", mprotect_res);
 
     free (bin_tr.x86_buff);
 
