@@ -2,6 +2,10 @@
 
 int main (int argc, char *argv[])
 {
+    #ifdef DEBUG
+    OPEN_LOG_FILE;
+    #endif
+    
     if (argc < 3)
     {
         MY_ASSERT (false, "int argc", NOT_ENOUGH_ARGS, ERROR);

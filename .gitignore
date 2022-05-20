@@ -8,6 +8,10 @@
 
 *.d
 
+*.bin
+
+*.log
+
 # Not for release
 
 Print_Double.c

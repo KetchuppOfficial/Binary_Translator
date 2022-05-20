@@ -41,6 +41,7 @@ struct Jump
     int from;
     int to;
     int x86_from;
+    enum Instructions type;
 };
 
 struct Bin_Tr
@@ -64,12 +65,13 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
     MY_ASSERT (jumps_arr, "struct Jump *jumps_arr", NE_MEM, NULL);
     int jump_i = 0;
 
+    int x86_ip = 0;
     for (int ip = 0; ip < max_ip; )
     {
         switch (code_arr[ip])
         {
             case hlt:
-                bin_tr->x86_max_ip += 10;   // look in Commands.md
+                x86_ip += 10;   // look in Commands.md
                 ip++;
                 break;
 
@@ -85,19 +87,26 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                 int jump_to = *(int *)(code_arr + ip + 1);
                 jumps_arr[jump_i].to = jump_to;
                 jumps_arr[jump_i].from = ip;
-                jump_i++;
 
-                ip += 1 + sizeof (int);
                 if (code_arr[ip] == call || code_arr[ip] == jmp)
-                    bin_tr->x86_max_ip += 5;    // look in Commands.md
+                {
+                    jumps_arr[jump_i].x86_from = x86_ip;        // ip of the first byte of jump
+                    x86_ip += 5;    // look in Commands.md
+                }
                 else
-                    bin_tr->x86_max_ip += 11;   // look in Commands.md
+                {
+                    jumps_arr[jump_i].x86_from = x86_ip + 5;    // ip of the first byte of jump
+                    x86_ip += 11;   // look in Commands.md
+                }
+
+                jumps_arr[jump_i++].type = (int)code_arr[ip];
+                ip += 1 + sizeof (int);
 
                 break;
             }
 
             case ret:
-                bin_tr->x86_max_ip++;   // look in Commands.md
+                x86_ip++;   // look in Commands.md
                 ip++;
                 break;
 
@@ -105,7 +114,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
             case out:
                 ip++;
                 #if 0
-                bin_tr->x86_max_ip += ?;
+                x86_ip += ?;
                 #endif
                 break;
 
@@ -114,22 +123,24 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
             {
                 ip++;
                 int checksum = code_arr[ip] + 10 * code_arr[ip + 1] + 100 * code_arr[ip + 2];
+                //                  |                     |                        |
+                //                if RAM                if reg                   if num
 
                 switch (checksum)
                 {                    
                     case EMPTY:
                         ip += 3;
-                        bin_tr->x86_max_ip++;       // look in Commands.md
+                        x86_ip++;       // look in Commands.md
                         break;
                     
                     case NUM:
                         ip += 3 + sizeof (double);
-                        bin_tr->x86_max_ip += 11;   // look in Commands.md
+                        x86_ip += 11;   // look in Commands.md
                         break;
 
                     case RAM_NUM:
                         ip += 3 + sizeof (int);
-                        bin_tr->x86_max_ip += 9;    // look in Commands.md
+                        x86_ip += 9;    // look in Commands.md
                         break;
 
                     case AX:
@@ -137,7 +148,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                     case CX:
                     case DX:
                         ip += 3;
-                        bin_tr->x86_max_ip++;       // look in Commands.md
+                        x86_ip++;       // look in Commands.md
                         break;
 
                     case RAM_AX:
@@ -145,14 +156,14 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                     case RAM_CX:
                     case RAM_DX:
                         ip += 3;
-                        bin_tr->x86_max_ip += 4;    // look in Commands.md
+                        x86_ip += 4;    // look in Commands.md
                         break;
 
                     case RAM_AX_NUM:
                     case RAM_BX_NUM:
                     case RAM_CX_NUM:
                     case RAM_DX_NUM:
-                        bin_tr->x86_max_ip += 8;    // look in Commands.md
+                        x86_ip += 8;    // look in Commands.md
                         ip += 3 + sizeof (int);
                         break;
 
@@ -167,7 +178,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
             case sub:
             case mul:
             case dvd:
-                bin_tr->x86_max_ip += 24;   // look in Commands.md
+                x86_ip += 24;   // look in Commands.md
                 ip++;
                 break;
 
@@ -176,6 +187,8 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
     }
 
     *n_jumps = jump_i;
+    jumps_arr = realloc (jumps_arr, jump_i * sizeof (struct Jump));
+    bin_tr->x86_max_ip = x86_ip;
 
     return jumps_arr;
 }
@@ -186,6 +199,12 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
 //                                   SECOND PASSING                                    //
 //=====================================================================================//
 
+static inline void Put_In_x86_Buffer (char *const x86_buffer, int *const x86_ip, const char *const opcode, const size_t opcode_size)
+{
+    memcpy (x86_buffer + *x86_ip, opcode, opcode_size);
+    *x86_ip += opcode_size;
+}
+
 static inline void Translate_Hlt (char *const x86_buffer, int *const x86_ip)
 {
     char opcode[] = {
@@ -194,13 +213,72 @@ static inline void Translate_Hlt (char *const x86_buffer, int *const x86_ip)
                         0x0F, 0x05                      // syscall
                     };
 
-    memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
-    *x86_ip += sizeof opcode;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 }
 
 static inline void Translate_Ret (char *const x86_buffer, int *const x86_ip)
 {
     x86_buffer[(*x86_ip)++] = 0x3C;
+}
+
+static inline void Translate_Call (char *const x86_buffer, int *const x86_ip)
+{
+    const char opcode[] = {
+                            0xE8,                       // call "procedure"
+                            0x00, 0x00, 0x00, 0x00      // <-- procedure relative offset (will be changes while 3rd passing)
+                          };
+    
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
+}
+
+static inline void Translate_Jmp (char *const x86_buffer, int *const x86_ip)
+{
+    const char opcode[] = {
+                            0xE9,                       // jmp "label"
+                            0x00, 0x00, 0x00, 0x00      // <-- label relative offset (will be changes while 3rd passing)
+                          };
+    
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
+}
+
+static inline int Translate_Conditional_Jmp (char *const x86_buffer, int *const x86_ip, const enum Instructions jcc)
+{
+    char opcode[] = {
+                        0x5E,                   // pop rsi           
+                        0x5F,                   // pop rdi
+                        0x48, 0x39, 0xF7,       // cmp rdi, rsi
+                        0x0F, 0x00,             // jcc "label"
+                        0x00, 0x00, 0x00, 0x00  // <-- label relative offset (will be changed while 3rd passing)
+                    };
+
+    switch (jcc)
+    {
+        case jae:
+            opcode[6] = 0x83;
+            break;
+        case ja:
+            opcode[6] = 0x87;
+            break;
+        case jbe:
+            opcode[6] = 0x86;
+            break;
+        case jb:
+            opcode[6] = 0x82;
+            break;
+        case je:
+            opcode[6] = 0x84;
+            break;
+        case jne:
+            opcode[6] = 0x85;
+            break;
+
+        default:
+            MY_ASSERT (false, "const enum Instructions jcc", UNEXP_VAL, ERROR);
+    }
+
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
+    
+    return NO_ERRORS;
 }
 
 static inline void Translate_Pop (char *const x86_buff, int *const x86_ip)
@@ -219,8 +297,7 @@ static inline void Translate_Push_Num (char *const x86_buffer, int *const x86_ip
 
     *(double *)(opcode + 2) = num;
 
-    memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
-    *x86_ip += sizeof opcode;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 }
 
 static inline void Translate_Push_RAM_Num (char *const x86_buffer, int *const x86_ip, const int num)
@@ -234,8 +311,7 @@ static inline void Translate_Push_RAM_Num (char *const x86_buffer, int *const x8
 
     *(int *)(opcode + 4) = num;
 
-    memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
-    *x86_ip += sizeof opcode;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 }
 
 static inline void Translate_Pop_RAM_Num (char *const x86_buffer, int *const x86_ip, const int num)
@@ -249,8 +325,7 @@ static inline void Translate_Pop_RAM_Num (char *const x86_buffer, int *const x86
 
     *(int *)(opcode + 5) = num;
 
-    memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
-    *x86_ip += sizeof opcode;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 }
 
 enum Registers
@@ -281,7 +356,7 @@ static inline int Translate_Push_Reg (char *const x86_buffer, int *const x86_ip,
             break;
 
         default:
-            MY_ASSERT (false, "enum Registers reg", UNEXP_VAL, ERROR);
+            MY_ASSERT (false, "const enum Registers reg", UNEXP_VAL, ERROR);
             break;
     }
 
@@ -310,7 +385,7 @@ static inline int Translate_Pop_Reg (char *const x86_buffer, int *const x86_ip, 
             break;
 
         default:
-            MY_ASSERT (false, "enum Registers reg", UNEXP_VAL, ERROR);
+            MY_ASSERT (false, "const enum Registers reg", UNEXP_VAL, ERROR);
             break;
     }
 
@@ -345,12 +420,11 @@ static inline int Translate_Push_RAM_Reg (char *const x86_buffer, int *const x86
             break;
 
         default:
-            MY_ASSERT (false, "enum Registers reg", UNEXP_VAL, ERROR);
+            MY_ASSERT (false, "const enum Registers reg", UNEXP_VAL, ERROR);
             break;   
     }
 
-    memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
-    *x86_ip += sizeof opcode;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 
     return NO_ERRORS;
 }
@@ -381,12 +455,11 @@ static inline int Translate_Pop_RAM_Reg (char *const x86_buffer, int *const x86_
             break;
 
         default:
-            MY_ASSERT (false, "enum Registers reg", UNEXP_VAL, ERROR);
+            MY_ASSERT (false, "const enum Registers reg", UNEXP_VAL, ERROR);
             break;   
     }
 
-    memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
-    *x86_ip += sizeof opcode;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 
     return NO_ERRORS;
 }
@@ -395,7 +468,7 @@ static inline int Translate_Push_RAM_Reg_Num (char *const x86_buffer, int *const
 {    
     char opcode[] = {
                         0x48, 0x8B, 0x00,       // mov rdi, qword [r?x + num]
-                        0x00, 0x00, 0x00, 0x00, // num (1 or 4 bytes)
+                        0x00, 0x00, 0x00, 0x00, // <-- num
                         0x57                    // push rdi
                     }; 
     
@@ -415,14 +488,13 @@ static inline int Translate_Push_RAM_Reg_Num (char *const x86_buffer, int *const
             break;
 
         default:
-            MY_ASSERT (false, "enum Registers reg", UNEXP_VAL, ERROR);  
+            MY_ASSERT (false, "const enum Registers reg", UNEXP_VAL, ERROR);  
             break;
     }
 
     *(int *)(opcode + 3) = num;
 
-    memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
-    *x86_ip += sizeof opcode;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 
     return NO_ERRORS;
 }
@@ -432,7 +504,7 @@ static inline int Translate_Pop_RAM_Reg_Num (char *const x86_buffer, int *const 
     char opcode[] = {
                         0x5F,                   // pop rdi
                         0x48, 0x89, 0x00,       // mov rdi, qword [r?x + num]
-                        0x00, 0x00, 0x00, 0x00, // num
+                        0x00, 0x00, 0x00, 0x00, // <-- num
                     }; 
 
     switch (reg)
@@ -451,14 +523,13 @@ static inline int Translate_Pop_RAM_Reg_Num (char *const x86_buffer, int *const 
             break;
 
         default:
-            MY_ASSERT (false, "enum Registers reg", UNEXP_VAL, ERROR);  
+            MY_ASSERT (false, "const enum Registers reg", UNEXP_VAL, ERROR);  
             break;
     }
     
     *(int *)(opcode + 4) = num;
 
-    memcpy (x86_buffer + *x86_ip, opcode, sizeof opcode);
-    *x86_ip += sizeof opcode;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 
     return NO_ERRORS;
 }
@@ -471,8 +542,7 @@ static int Translate_Math (char *const x86_buffer, int *const x86_ip, const enum
                                 0x48, 0x83, 0xC4, 0x08                  // add     rsp, 8
                               };
 
-    memcpy (x86_buffer + *x86_ip, first_part, sizeof first_part);
-    *x86_ip += sizeof first_part;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, first_part, sizeof first_part);
     
     char math_instruction[] = {0xF2, 0x0F, 0x00, 0xCA};
     //                                       |
@@ -494,26 +564,23 @@ static int Translate_Math (char *const x86_buffer, int *const x86_ip, const enum
             break;
 
         default:
-            MY_ASSERT (false, "enum Instructions instruction", UNEXP_VAL, ERROR);
+            MY_ASSERT (false, "const enum Instructions instruction", UNEXP_VAL, ERROR);
     }
 
-    memcpy (x86_buffer + *x86_ip, math_instruction, sizeof math_instruction);
-    *x86_ip += sizeof math_instruction;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, math_instruction, sizeof math_instruction);
 
     const char last_part[] = {
                                 0xF2, 0x0F, 0x11, 0x0C, 0x24    // movsd   qword [rsp], xmm1
                              };
 
-    memcpy (x86_buffer + *x86_ip, last_part, sizeof last_part);
-    *x86_ip += sizeof last_part;
+    Put_In_x86_Buffer (x86_buffer, x86_ip, last_part, sizeof last_part);
 
     return NO_ERRORS;
 }           
 
-int Second_Passing (struct Bin_Tr *const bin_tr, const struct Jump *const jumps_arr, const int n_jumps)
+int Second_Passing (struct Bin_Tr *const bin_tr)
 {
-    MY_ASSERT (bin_tr,    "const char *code_arr",         NULL_PTR, ERROR);
-    MY_ASSERT (jumps_arr, "const struct Jump *jumps_arr", NULL_PTR, ERROR);
+    MY_ASSERT (bin_tr, "struct Bin_Tr *const bin_tr", NULL_PTR, ERROR);
 
     bin_tr->x86_buff = (char *)calloc (bin_tr->x86_max_ip, sizeof (char));
     MY_ASSERT (bin_tr->x86_buff, "bin_tr->x86_buffer", NE_MEM, ERROR);
@@ -532,10 +599,12 @@ int Second_Passing (struct Bin_Tr *const bin_tr, const struct Jump *const jumps_
                 break;
             
             case call:
+                Translate_Call (x86_buffer, &x86_ip);
                 ip += 1 + sizeof (int);
                 break;
 
             case jmp:
+                Translate_Jmp (x86_buffer, &x86_ip);
                 ip += 1 + sizeof (int);
                 break;
             
@@ -545,8 +614,14 @@ int Second_Passing (struct Bin_Tr *const bin_tr, const struct Jump *const jumps_
             case jb:
             case jne:
             case je:
+            {
+                int jcc = (int)code_arr[ip];
+                
+                Translate_Conditional_Jmp (x86_buffer, &x86_ip, jcc);
                 ip += 1 + sizeof (int);
+
                 break;
+            }
 
             case ret:
                 Translate_Ret (x86_buffer, &x86_ip);
@@ -653,13 +728,13 @@ int Second_Passing (struct Bin_Tr *const bin_tr, const struct Jump *const jumps_
                 }
 
                 break;
-            }
+            }           
 
             case add:
             case sub:
             case mul:
             case dvd:
-                Translate_Math (x86_buffer, &ip, code_arr[ip]);
+                Translate_Math (x86_buffer, &x86_ip, code_arr[ip]);
                 ip++;
                 break;
 
@@ -669,29 +744,215 @@ int Second_Passing (struct Bin_Tr *const bin_tr, const struct Jump *const jumps_
 
     return NO_ERRORS;
 }
-#undef DEFCMD_
 
-static int Translate (struct Bin_Tr *bin_tr)
+static int Compare_Jumps (const void *jump_v1, const void *jump_v2)
 {
-    MY_ASSERT (bin_tr,             "struct Bin_Tr bin_tr",    NULL_PTR, ERROR);
-    MY_ASSERT (bin_tr->input_buff, "const char *const input", NULL_PTR, ERROR);
+    const struct Jump *jump_1 = (const struct Jump *)jump_v1;
+    const struct Jump *jump_2 = (const struct Jump *)jump_v2;
+    
+    if (jump_1->to < jump_2->to)
+        return -1;
+    else if (jump_1->to > jump_2->to)
+        return 1;
+    else
+        return 0;
+}
+
+static void Sort_Jumps (struct Jump *const jumps_arr, const int n_jumps)
+{
+    qsort (jumps_arr, n_jumps, sizeof (struct Jump), Compare_Jumps);
+}
+
+static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_arr, const int n_jumps)
+{
+    MY_ASSERT (bin_tr,    "struct Bin_Tr *const bin_tr",         NULL_PTR, ERROR);
+    MY_ASSERT (jumps_arr, "const struct Jumps *const jumps_arr", NULL_PTR, ERROR);
+
+    int max_ip      = bin_tr->max_ip;
+    char *proc_buff = bin_tr->input_buff;
+    char *x86_buff  = bin_tr->x86_buff;
+    
+    Sort_Jumps (jumps_arr, n_jumps);    // sorts by "to" field
+    
+    int jump_i = 0;
+    int ip = 0, x86_ip = 0;
+
+    while (ip < max_ip)
+    {
+        if (ip == jumps_arr[jump_i].to)
+        {
+            int x86_from = jumps_arr[jump_i].x86_from;
+
+            switch (jumps_arr[jump_i].type)
+            {
+                case call:
+                case jmp:
+                    printf ("x86_ip = %d\n", x86_ip);
+                    *(int *)(x86_buff + x86_from + 1) = x86_ip - x86_from;
+                    break;
+                case jae:
+                case ja:
+                case jbe:
+                case jb:
+                case je:
+                case jne:
+                    *(int *)(x86_buff + x86_from + 2) = x86_ip - x86_from;
+                    break;
+
+                default:
+                    MY_ASSERT (false, "jumps_arr[jump_i].type", UNEXP_VAL, ERROR);
+                    break;
+            }
+            
+            jump_i++;
+        }
+        
+        switch (proc_buff[ip])
+        {
+            case hlt:
+                x86_ip += 10;   // look in Commands.md
+                ip++;
+                break;
+
+            case call:
+            case jmp:
+            case jae:
+            case ja:
+            case jbe:
+            case jb:
+            case jne:
+            case je:
+            {
+                if (proc_buff[ip] == call || proc_buff[ip] == jmp)
+                    x86_ip += 5;    // look in Commands.md
+                else
+                    x86_ip += 11;   // look in Commands.md
+                ip += 1 + sizeof (int);
+
+                break;
+            }
+
+            case ret:
+                x86_ip++;   // look in Commands.md
+                ip++;
+                break;
+
+            case in:
+            case out:
+                ip++;
+                #if 0
+                x86_ip += ?;
+                #endif
+                break;
+
+            case push:
+            case pop:
+            {
+                ip++;
+                int checksum = proc_buff[ip] + 10 * proc_buff[ip + 1] + 100 * proc_buff[ip + 2];
+                //                  |                     |                        |
+                //                if RAM                if reg                   if num
+
+                switch (checksum)
+                {                    
+                    case EMPTY:
+                        ip += 3;
+                        x86_ip++;       // look in Commands.md
+                        break;
+                    
+                    case NUM:
+                        ip += 3 + sizeof (double);
+                        x86_ip += 11;   // look in Commands.md
+                        break;
+
+                    case RAM_NUM:
+                        ip += 3 + sizeof (int);
+                        x86_ip += 9;    // look in Commands.md
+                        break;
+
+                    case AX:
+                    case BX:
+                    case CX:
+                    case DX:
+                        ip += 3;
+                        x86_ip++;       // look in Commands.md
+                        break;
+
+                    case RAM_AX:
+                    case RAM_BX:
+                    case RAM_CX:
+                    case RAM_DX:
+                        ip += 3;
+                        x86_ip += 4;    // look in Commands.md
+                        break;
+
+                    case RAM_AX_NUM:
+                    case RAM_BX_NUM:
+                    case RAM_CX_NUM:
+                    case RAM_DX_NUM:
+                        x86_ip += 8;    // look in Commands.md
+                        ip += 3 + sizeof (int);
+                        break;
+
+                    default:
+                        MY_ASSERT (false, "int checksum", UNEXP_VAL, ERROR);
+                        break;
+                }
+                break;
+            }
+
+            case add:
+            case sub:
+            case mul:
+            case dvd:
+                x86_ip += 24;   // look in Commands.md
+                ip++;
+                break;
+
+            default: MY_ASSERT (false, "code_arr[ip]", UNDEF_CMD, ERROR);
+        }
+
+    }
+    
+    return NO_ERRORS;
+}
+
+static int Translate (struct Bin_Tr *const bin_tr)
+{
+    MY_ASSERT (bin_tr,             "struct Bin_Tr *const bin_tr", NULL_PTR, ERROR);
+    MY_ASSERT (bin_tr->input_buff, "const char *const input",     NULL_PTR, ERROR);
 
     int n_jumps = 0;
     struct Jump *jumps_arr = First_Passing (bin_tr, &n_jumps);
-    MY_ASSERT (jumps_arr, "First_Passing ()", FUNC_ERROR, ERROR);
+    MY_ASSERT ((n_jumps == 0 && jumps_arr == NULL) || (n_jumps > 0 && jumps_arr != NULL), "First_Passing ()", FUNC_ERROR, ERROR);
 
-    int SP_status = Second_Passing (bin_tr, jumps_arr, n_jumps);
+    #if 1
+    for (int i = 0; i < n_jumps; i++)
+        printf ("TYPE: %X\n"
+                "from: %d\n"
+                "to: %d\n"
+                "x86_from: %d\n\n", 
+                jumps_arr[i].type, jumps_arr[i].from, jumps_arr[i].to, jumps_arr[i].x86_from);      
+    #endif
+
+    int SP_status = Second_Passing (bin_tr);
     MY_ASSERT (SP_status != ERROR, "Second_Passing ()", FUNC_ERROR, ERROR);
 
-    free (jumps_arr);
+    if (n_jumps > 0)
+    {
+        int TP_status = Third_Passing (bin_tr, jumps_arr, n_jumps);
+        MY_ASSERT (TP_status != ERROR, "Third_Passing ()", FUNC_ERROR, ERROR);
+
+        free (jumps_arr);
+    }
 
     return NO_ERRORS;
 }
 
-static int Extract_Code (struct Bin_Tr *bin_tr, const char *const input_name)
+static int Extract_Code (struct Bin_Tr *const bin_tr, const char *const input_name)
 {
-    MY_ASSERT (bin_tr,             "struct Bin_Tr bin_tr",    NULL_PTR, ERROR);
-    MY_ASSERT (bin_tr->input_buff, "const char *const input", NULL_PTR, ERROR);
+    MY_ASSERT (bin_tr,     "struct Bin_Tr *const bin_tr",  NULL_PTR, ERROR);
+    MY_ASSERT (input_name, "const char *const input_name", NULL_PTR, ERROR);
     
     FILE *file_ptr = Open_File (input_name, "rb");
     MY_ASSERT (file_ptr, "Open_File ()", FUNC_ERROR, ERROR);
@@ -721,6 +982,10 @@ int Binary_Translator (const char *const input_name, const char *const output_na
     int Tr_status = Translate (&bin_tr);
     free (bin_tr.input_buff);
     MY_ASSERT (Tr_status != ERROR, "Translate ()", FUNC_ERROR, ERROR);
+
+    FILE *output = Open_File (output_name, "wb");
+    fwrite (bin_tr.x86_buff, sizeof (char), bin_tr.x86_max_ip, output);
+    Close_File (output, output_name);
 
     #if 0
     Generate_ELF (output_buff, output);
