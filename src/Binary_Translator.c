@@ -59,7 +59,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
     MY_ASSERT (n_jumps,            "int *const n_jumps",      NULL_PTR, NULL);
 
     const int   max_ip   = bin_tr->max_ip;
-    const char *code_arr = bin_tr->input_buff;
+    const char *proc_buff = bin_tr->input_buff;
 
     struct Jump *jumps_arr = (struct Jump *)calloc (max_ip, sizeof (struct Jump));
     MY_ASSERT (jumps_arr, "struct Jump *jumps_arr", NE_MEM, NULL);
@@ -70,7 +70,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
 
     for (int ip = 0; ip < max_ip; )
     {
-        switch (code_arr[ip])
+        switch (proc_buff[ip])
         {
             case hlt:
                 x86_ip += 10;   // look in Commands.md
@@ -86,11 +86,11 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
             case jne:
             case je:
             {
-                int jump_to = *(int *)(code_arr + ip + 1);
+                int jump_to = *(int *)(proc_buff + ip + 1);
                 jumps_arr[jump_i].to = jump_to;
                 jumps_arr[jump_i].from = ip;
 
-                if (code_arr[ip] == call || code_arr[ip] == jmp)
+                if (proc_buff[ip] == call || proc_buff[ip] == jmp)
                 {
                     jumps_arr[jump_i].x86_from = x86_ip;        // ip of the first byte of jump
                     x86_ip += 5;    // look in Commands.md
@@ -102,7 +102,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                     rsp += 16;
                 }
 
-                jumps_arr[jump_i++].type = (int)code_arr[ip];
+                jumps_arr[jump_i++].type = (int)proc_buff[ip];
                 ip += 1 + sizeof (int);
 
                 break;
@@ -129,7 +129,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
             case pop:
             {
                 ip++;
-                int checksum = code_arr[ip] + 10 * code_arr[ip + 1] + 100 * code_arr[ip + 2];
+                int checksum = proc_buff[ip] + 10 * proc_buff[ip + 1] + 100 * proc_buff[ip + 2];
                 //                  |                     |                        |
                 //                if RAM                if reg                   if num
 
@@ -179,7 +179,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                         break;
                 }
 
-                rsp = (code_arr[ip] == push) ? rsp - 8 : rsp + 8;
+                rsp = (proc_buff[ip] == push) ? rsp - 8 : rsp + 8;
 
                 break;
             }
@@ -199,15 +199,15 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                 break;
 
             default: 
-                MY_ASSERT (false, "code_arr[ip]", UNDEF_CMD, NULL);
+                MY_ASSERT (false, "proc_buff[ip]", UNDEF_CMD, NULL);
                 break;
         }
     }
 
+    bin_tr->x86_max_ip = x86_ip;
+
     *n_jumps = jump_i;
     jumps_arr = realloc (jumps_arr, jump_i * sizeof (struct Jump));
-
-    bin_tr->x86_max_ip = x86_ip;
 
     return jumps_arr;
 }
@@ -300,7 +300,7 @@ static inline int Translate_Conditional_Jmp (char *const x86_buffer, int *const 
     return NO_ERRORS;
 }
 
-static volatile void In (double *num_ptr)
+static inline void In (double *num_ptr)
 {
     printf ("Write a number: ");
     scanf ("%lf", num_ptr);
@@ -360,7 +360,7 @@ static inline void Translate_In_Aligned (char *const x86_buffer, int *const x86_
     Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 }
 
-static volatile void Out (const double number)
+static inline void Out (const double number)
 {
     printf ("%g\n", number);
 }
@@ -664,7 +664,7 @@ static int Translate_Arithmetics (char *const x86_buffer, int *const x86_ip, con
             math_instruction[2] = 0x58;     // addsd   xmm1, xmm2
             break;
         case sub:
-            math_instruction[2] = 0xCA;     // subsd   xmm1, xmm2
+            math_instruction[2] = 0x5C;     // subsd   xmm1, xmm2
             break;
         case mul:
             math_instruction[2] = 0x59;     // mulsd   xmm1, xmm2
@@ -719,14 +719,14 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
     bin_tr->x86_buff = (char *)aligned_calloc (bin_tr->x86_max_ip, sizeof (char *));
     MY_ASSERT (bin_tr->x86_buff, "bin_tr->x86_buffer", NE_MEM, ERROR);
 
-    const char *code_arr   = bin_tr->input_buff;
+    const char *proc_buff   = bin_tr->input_buff;
     char       *x86_buffer = bin_tr->x86_buff;
     const int  max_ip      = bin_tr->max_ip;
 
     int rsp = 0;
     for (int ip = 0, x86_ip = 0; ip < max_ip; )
     {
-        switch (code_arr[ip])
+        switch (proc_buff[ip])
         {
             case hlt:
                 Translate_Hlt (x86_buffer, &x86_ip);
@@ -750,7 +750,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
             case jne:
             case je:
             {
-                int jcc = (int)code_arr[ip];
+                int jcc = (int)proc_buff[ip];
                 
                 Translate_Conditional_Jmp (x86_buffer, &x86_ip, jcc);
                 ip += 1 + sizeof (int);
@@ -784,10 +784,10 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
             case push:
             case pop:
             {
-                const char instr_name = code_arr[ip];
+                const char instr_name = proc_buff[ip];
 
                 ip++;
-                int checksum = code_arr[ip] + 10 * code_arr[ip + 1] + 100 * code_arr[ip + 2];
+                int checksum = proc_buff[ip] + 10 * proc_buff[ip + 1] + 100 * proc_buff[ip + 2];
                 //                  |                     |                        |
                 //                if RAM                if reg                   if num
                 
@@ -800,7 +800,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                     
                     case NUM:
                     {
-                        const double num = *(double *)(code_arr + ip + 3);
+                        const double num = *(double *)(proc_buff + ip + 3);
 
                         Translate_Push_Num (x86_buffer, &x86_ip, num);
                         ip += (3 + sizeof (double));
@@ -810,7 +810,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
 
                     case RAM_NUM:
                     {
-                        const int num = *(int *)(code_arr + ip + 3);
+                        const int num = *(int *)(proc_buff + ip + 3);
                         
                         if (instr_name == push)
                             Translate_Push_RAM_Num (x86_buffer, &x86_ip, num);
@@ -826,7 +826,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                     case CX:
                     case DX:
                     {
-                        const char reg = code_arr[ip + 1];
+                        const char reg = proc_buff[ip + 1];
 
                         if (instr_name == push)
                             Translate_Push_Reg (x86_buffer, &x86_ip, (int)reg);
@@ -842,7 +842,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                     case RAM_CX:
                     case RAM_DX:
                     {
-                        const char reg = code_arr[ip + 1];
+                        const char reg = proc_buff[ip + 1];
 
                         if (instr_name == push)
                             Translate_Push_RAM_Reg (x86_buffer, &x86_ip, (int)reg);
@@ -858,8 +858,8 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                     case RAM_CX_NUM:
                     case RAM_DX_NUM:
                     {
-                        const char reg = code_arr[ip + 1];
-                        const int num  = *(int *)(code_arr + ip + 3);
+                        const char reg = proc_buff[ip + 1];
+                        const int num  = *(int *)(proc_buff + ip + 3);
 
                         if (instr_name == push)
                             Translate_Push_RAM_Reg_Num (x86_buffer, &x86_ip, (int)reg, num);
@@ -875,7 +875,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                         break;
                 }
 
-                rsp = (code_arr[ip] == push) ? rsp - 8 : rsp + 8;
+                rsp = (proc_buff[ip] == push) ? rsp - 8 : rsp + 8;
 
                 break;
             }           
@@ -884,7 +884,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
             case sub:
             case mul:
             case dvd:
-                Translate_Arithmetics (x86_buffer, &x86_ip, code_arr[ip]);
+                Translate_Arithmetics (x86_buffer, &x86_ip, proc_buff[ip]);
                 ip++;
                 rsp += 8;
                 break;
@@ -894,7 +894,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                 ip++;
                 break;
 
-            default: MY_ASSERT (false, "code_arr[ip]", UNDEF_CMD, ERROR);
+            default: MY_ASSERT (false, "proc_buff[ip]", UNDEF_CMD, ERROR);
         }
     }
 
@@ -1075,7 +1075,7 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
                 ip++;
                 break;
 
-            default: MY_ASSERT (false, "code_arr[ip]", UNDEF_CMD, ERROR);
+            default: MY_ASSERT (false, "proc_buff[ip]", UNDEF_CMD, ERROR);
         }
     }
     
