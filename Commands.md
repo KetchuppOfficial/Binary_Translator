@@ -30,7 +30,7 @@
 
     x86-64 OPCODE:  5 byte
         
-        0xE8 (shift: hex, 4 bytes)
+        0xE8 (shift: 4 bytes)
 
     Comments:
 
@@ -48,7 +48,7 @@
 
     x86-64 OPCODE:  5 bytes
 
-        0xE9 (shift: hex, 4 bytes)
+        0xE9 (shift: 4 bytes)
 
     Comments:
 
@@ -79,12 +79,12 @@
         0x5F
         0x48 0x39 0xF7
 
-        0x0F 0x83 (shift: hex, 4 bytes)     // jae
-        ...  0x87         ...               // ja
-        ...  0x86         ...               // jbe
-        ...  0x82         ...               // jb
-        ...  0x84         ...               // je
-        ...  0x85         ...               // jne
+        0x0F 0x83 (shift: 4 bytes)     // jae
+        ...  0x87       ...            // ja
+        ...  0x86       ...            // jbe
+        ...  0x82       ...            // jb
+        ...  0x84       ...            // je
+        ...  0x85       ...            // jne
 
     Comments:
 
@@ -104,14 +104,89 @@
 
         0xC3
 
-## in: 
+## in:
+
     MY ASSEMBLER:
 
         0x0A
+    
+    ALIGNED VERSION:
+    
+        NASM:
 
-    IMPLEMENTED EXTERNALLY
+            push    rdi
+            
+            push    rax
+            push    rbx
+            push    rcx
+            push    rdx
+            
+            lea     rdi, [rsp + 32] 
+            call    In
 
-Look [here](src/Std_Lib.s) for more details
+            pop     rdx
+            pop     rcx
+            pop     rbx
+            pop     rax
+
+        x86-64 OPCODE:      19 bytes
+
+            0x57
+
+            0x50
+            0x53
+            0x51
+            0x52
+
+            0x48 0x8D 0x7C 0x24 0x20
+            0xE8 (In relative address: 4 bytes)
+
+            0x5A
+            0x59
+            0x5B
+            0x58
+
+    UNALIGNED VERSION:
+
+        NASM:
+
+            push    rdi
+            push    rdi
+            
+            push    rax
+            push    rbx
+            push    rcx
+            push    rdx
+            
+            lea     rdi, [rsp + 40]
+            call    In
+
+            pop     rdx
+            pop     rcx
+            pop     rbx
+            pop     rax
+
+            pop     rdi
+
+        x86-64 OPCODE:      21 byte
+
+            0x57
+            0x57
+
+            0x50
+            0x53
+            0x51
+            0x52
+
+            0x48 0x8D 0x7C 0x24 0x28
+            0xE8 (In relative address: 4 bytes)
+
+            0x5A
+            0x59
+            0x5B
+            0x58
+
+            0x5F
 
 ## out:
 
@@ -119,9 +194,42 @@ Look [here](src/Std_Lib.s) for more details
 
         0x0B
 
-    IMPLEMENTED EXTERNALLY
+    NASM:
 
-Look [here](src/Std_Lib.s) for more details
+        movsd   xmm0, qword [rsp]
+
+        push    rax
+        push    rbx
+        push    rcx
+        push    rdx
+
+        call    Out
+
+        pop     rdx
+        pop     rcx
+        pop     rbx
+        pop     rax
+
+        pop     rdi
+
+    x86-64 OPCODE:      19 bytes
+
+        0xF2 0x0F 0x10 0x04 0x24
+        0x48 0x83 0xC4 0x08
+
+        0x50
+        0x53
+        0x51
+        0x52
+
+        0xE8 (Out relative address: 4 bytes)
+
+        0x5A
+        0x59
+        0x5B
+        0x58
+
+        0x5F
 
 ## push:
 
@@ -137,19 +245,19 @@ Look [here](src/Std_Lib.s) for more details
 
     NASM:
 
-        mov     rdi, (number: hex, 8 bytes)
+        mov     rdi, (number: 8 bytes)
         push    rdi
 
     x86-64 OPCODES:     11 bytes
 
-        0x48 0xBF (number: hex, 8 bytes)
+        0x48 0xBF (number: 8 bytes)
         0x57
 
 ### push ["number"]
 
     MY ASSEMBLER:
     
-    0x0C 0x01 0x00 0x01 (number: hex, 4 bytes)
+    0x0C 0x01 0x00 0x01 (number: 4 bytes)
 
     NASM:
     
@@ -158,7 +266,7 @@ Look [here](src/Std_Lib.s) for more details
 
     x86-64 OPCODES:     9 bytes
 
-        0x48 0x8B 0x3C 0x25 (number: hex, 4 bytes)
+        0x48 0x8B 0x3C 0x25 (number: 4 bytes)
         0x57
 
 ### push "register"
@@ -207,10 +315,10 @@ Look [here](src/Std_Lib.s) for more details
 
     MY ASSEMBLER:
     
-        0x0C 0x01 0x01 0x01 (number: hex, 4 bytes)    // push [ax + "number"]
-        ...  ...  0x02 ...           ...              // push [bx + "number"]
-        ...  ...  0x03 ...           ...              // push [cx + "number"]
-        ...  ...  0x04 ...           ...              // push [dx + "number"]
+        0x0C 0x01 0x01 0x01 (number: 4 bytes)    // push [ax + "number"]
+        ...  ...  0x02 ...         ...           // push [bx + "number"]
+        ...  ...  0x03 ...         ...           // push [cx + "number"]
+        ...  ...  0x04 ...         ...           // push [dx + "number"]
 
     NASM:
     
@@ -219,10 +327,10 @@ Look [here](src/Std_Lib.s) for more details
 
     x86-64 OPCODES:     8 bytes
 
-        0x48 0x8B 0xB8 (number: hex, 4 bytes)   // rax
-        ...  ...  0xBB          ...             // rbx
-        ...  ...  0xB9          ...             // rcx
-        ...  ...  0xBA          ...             // rdx
+        0x48 0x8B 0xB8 (number: 4 bytes)   // rax
+        ...  ...  0xBB        ...          // rbx
+        ...  ...  0xB9        ...          // rcx
+        ...  ...  0xBA        ...          // rdx
 
         0x57
 
@@ -250,7 +358,7 @@ Look [here](src/Std_Lib.s) for more details
 
     MY ASSEMBLER:
     
-        0x0D 0x01 0x00 0x01 (number: hex, 4 bytes)
+        0x0D 0x01 0x00 0x01 (number: 4 bytes)
 
     NASM:
     
@@ -260,7 +368,7 @@ Look [here](src/Std_Lib.s) for more details
     x86-64 OPCODES:     9 bytes
 
         0x5F
-        0x48 0x89 0x3C 0x25 (number: hex, 4 bytes)
+        0x48 0x89 0x3C 0x25 (number: 4 bytes)
 
 ### pop "register"
 
@@ -309,10 +417,10 @@ Look [here](src/Std_Lib.s) for more details
 
     MY ASSEMBLER:
     
-        0x0D 0x01 0x01 0x01 (number: hex, 4 bytes)    // pop [ax + "number"]
-        ...  ...  0x02 ...           ...              // pop [bx + "number"]
-        ...  ...  0x03 ...           ...              // pop [cx + "number"]
-        ...  ...  0x04 ...           ...              // pop [dx + "number"]
+        0x0D 0x01 0x01 0x01 (number: 4 bytes)    // pop [ax + "number"]
+        ...  ...  0x02 ...         ...           // pop [bx + "number"]
+        ...  ...  0x03 ...         ...           // pop [cx + "number"]
+        ...  ...  0x04 ...         ...           // pop [dx + "number"]
 
     NASM:
     
@@ -323,10 +431,10 @@ Look [here](src/Std_Lib.s) for more details
 
         0x5F
         
-        0x48 0x89 0xB8 (number: hex, 4 bytes)   // rax
-        ...  ...  0xBB          ...             // rbx
-        ...  ...  0xB9          ...             // rcx
-        ...  ...  0xBA          ...             // rdx
+        0x48 0x89 0xB8 (number: 4 bytes)   // rax
+        ...  ...  0xBB        ...          // rbx
+        ...  ...  0xB9        ...          // rcx
+        ...  ...  0xBA        ...          // rdx
 
 ## Math functions
 
@@ -374,10 +482,10 @@ Look [here](src/Std_Lib.s) for more details
 
         movsd   xmm0, qword [rsp]
         sqrtpd  xmm0, xmm0
-        movsd   qword [rsp], xmm1
+        movsd   qword [rsp], xmm0
 
     x86-64 OPCODES:     14 bytes
 
         0xF2 0x0F 0x10 0x04 0x24
         0x66 0x0F 0x51 0xC0
-        0xF2 0x0F 0x11 0x0C 0x24
+        0xF2 0x0F 0x11 0x04 0x24
