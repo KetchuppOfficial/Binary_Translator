@@ -11,6 +11,6 @@
 #define MY_ASSERT(condition, var, err_num, error) ;
 #endif
 
-int Binary_Translator (const char *const input, const char *const output);
+int Binary_Translator (const char *const input);
 
 #endif
