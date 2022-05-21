@@ -1,4 +1,4 @@
-CC     = gcc -std=c17
+CC     = gcc
 CFLAGS = -Wall -Werror -Wshadow -Wfloat-equal -Wswitch-default
 
 DEBUG = -g
@@ -9,7 +9,7 @@ BIN      = ./bin/
 SRCDIR   = ./src/
 BUILDDIR = ./build/
 
-SRC_LIST = main.c Binary_Translator.c #ELF_Generator.c 
+SRC_LIST = main.c Binary_Translator.c
 SRC = $(addprefix $(SRCDIR),$(SRC_LIST))
 
 SUBS := $(SRC)
