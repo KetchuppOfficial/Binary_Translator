@@ -65,7 +65,8 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
     MY_ASSERT (jumps_arr, "struct Jump *jumps_arr", NE_MEM, NULL);
     int jump_i = 0;
 
-    int x86_ip = 2; // we should also count "pop r11" that is 0x41, 0x5B
+    int x86_ip = 0;
+    int rsp = 0;
 
     for (int ip = 0; ip < max_ip; )
     {
@@ -98,6 +99,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                 {
                     jumps_arr[jump_i].x86_from = x86_ip + 5;    // ip of the first byte of jump
                     x86_ip += 11;   // look in Commands.md
+                    rsp += 16;
                 }
 
                 jumps_arr[jump_i++].type = (int)code_arr[ip];
@@ -113,11 +115,14 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
 
             case in:
                 ip++;
+                x86_ip = (rsp % 16 == 0) ? x86_ip + 19 : x86_ip + 21;   // look in Commands.md
+                rsp -= 8;
                 break;
 
             case out:
                 ip++;
-                x86_ip += 37;
+                x86_ip += 19;   // look in Commands.md
+                rsp += 8;
                 break;
 
             case push:
@@ -173,6 +178,9 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                         MY_ASSERT (false, "int checksum", UNEXP_VAL, NULL);
                         break;
                 }
+
+                rsp = (code_arr[ip] == push) ? rsp - 8 : rsp + 8;
+
                 break;
             }
 
@@ -182,6 +190,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
             case dvd:
                 x86_ip += 24;   // look in Commands.md
                 ip++;
+                rsp += 8;
                 break;
 
             case Sqrt:
@@ -197,6 +206,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
 
     *n_jumps = jump_i;
     jumps_arr = realloc (jumps_arr, jump_i * sizeof (struct Jump));
+
     bin_tr->x86_max_ip = x86_ip;
 
     return jumps_arr;
@@ -227,12 +237,7 @@ static inline void Translate_Hlt (char *const x86_buffer, int *const x86_ip)
 
 static inline void Translate_Ret (char *const x86_buffer, int *const x86_ip)
 {
-    char opcode[] = {
-                        0x41, 0x53,     // push r11
-                        0xC3            // ret
-                    };
-    
-    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
+    x86_buffer[(*x86_ip)++] = 0xC3;     // ret
 }
 
 static inline void Translate_Call (char *const x86_buffer, int *const x86_ip)
@@ -295,34 +300,96 @@ static inline int Translate_Conditional_Jmp (char *const x86_buffer, int *const 
     return NO_ERRORS;
 }
 
-#if 0
-static inline void Translate_Out (char *const x86_buffer, int *const x86_ip, const int x86_max_ip)
+static volatile void In (double *num_ptr)
+{
+    printf ("Write a number: ");
+    scanf ("%lf", num_ptr);
+}
+
+static inline void Translate_In_Unaligned (char *const x86_buffer, int *const x86_ip)
 {
     char opcode[] = {
-                        0x48, 0xBF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // mov rdi, "x86_buff + max_ip"
-                        0xF2, 0x0F, 0x10, 0x04, 0x24,                                   // movsd   xmm0, qword [rsp]
-                        0x48, 0x83, 0xC4, 0x08,                                         // add     rsp, 8
+                        0x57,   // push rdi <---------------------------------------+
+                                //                                                  |
+                        0x57,   // push rdi <--- for alignment                      |
+                                //                                                  |
+                        0x50,   // push rax                                         |
+                        0x53,   // push rbx                                         | 
+                        0x51,   // push rcx                                         |
+                        0x52,   // push rdx                                         |
+                                                        //                          |
+                        0x48, 0x8D, 0x7C, 0x24, 0x28,   // lea rdi, [rsp + 40] -----+
+                        0xE8, 0x00, 0x00, 0x00, 0x00,   // call In
+                                                        //
+                        0x5A,   // pop rdx
+                        0x59,   // pop rcx
+                        0x5B,   // pop rbx
+                        0x58,   // pop rax
 
-                        0x50,   // push rax
-                        0x53,   // push rbx
-                        0x51,   // push rcx
-                        0x52,   // push rdx
+                        0x5F    // pop rdi
+                    };
 
-                        0xB8, 0x01, 0x00, 0x00, 0x00,   // mov eax, 1
-                        0xE8, 0x00, 0x00, 0x00, 0x00,   // call printf
+    *(uint32_t *)(opcode + 12) = (uint64_t )In - (uint64_t)(x86_buffer + *x86_ip + 12 + sizeof (int));
+    // 12 - offset of call relatively to the beginning of opcode
 
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
+}
+
+static inline void Translate_In_Aligned (char *const x86_buffer, int *const x86_ip)
+{
+    char opcode[] = {
+                        0x57,   // push rdi <---------------------------------------+
+                                //                                                  |
+                        0x50,   // push rax                                         |
+                        0x53,   // push rbx                                         |
+                        0x51,   // push rcx                                         |
+                        0x52,   // push rdx                                         |
+                                                        //                          |
+                        0x48, 0x8D, 0x7C, 0x24, 0x20,   // lea rdi, [rsp + 32] -----+
+                        0xE8, 0x00, 0x00, 0x00, 0x00,   // call In
+                                                        //
                         0x5A,   // pop rdx
                         0x59,   // pop rcx
                         0x5B,   // pop rbx
                         0x58    // pop rax
                     };
 
-    *(uint64_t *)(opcode + 2) = (uint64_t)x86_buffer + (uint64_t)x86_max_ip;
-    *(uint32_t *)(opcode + 29) = (uint64_t)opcode + 28 - (uint32_t)0x21D0;
+    *(uint32_t *)(opcode + 11) = (uint64_t )In - (uint64_t)(x86_buffer + *x86_ip + 11 + sizeof (int));
+    // 11 - offset of call relatively to the beginning of opcode
 
     Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 }
-#endif
+
+static volatile void Out (const double number)
+{
+    printf ("%g\n", number);
+}
+
+static inline void Translate_Out (char *const x86_buffer, int *const x86_ip)
+{
+    char opcode[] = {
+                        0xF2, 0x0F, 0x10, 0x04, 0x24,   // movsd   xmm0, qword [rsp]
+
+                        0x50,        // push rax
+                        0x53,        // push rbx
+                        0x51,        // push rcx
+                        0x52,        // push rdx
+
+                        0xE8, 0x00, 0x00, 0x00, 0x00,   // call Out
+
+                        0x5A,       // pop rdx
+                        0x59,       // pop rcx
+                        0x5B,       // pop rbx
+                        0x58,       // pop rax
+
+                        0x5F
+                    };
+
+    *(uint32_t *)(opcode + 10) = (uint64_t )Out - (uint64_t)(x86_buffer + *x86_ip + 10 + sizeof (int));
+    // 15 - offset of call relatively to the beginning of opcode
+
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
+}
 
 static inline void Translate_Pop (char *const x86_buff, int *const x86_ip)
 {
@@ -626,7 +693,7 @@ static inline void Translate_Sqrt (char *const x86_buffer, int *const x86_ip)
     const char opcode[] = {
                             0xF2, 0x0F, 0x10, 0x04, 0x24,   // movsd   xmm0, qword [rsp]
                             0x66, 0x0F, 0x51, 0xC0,         // sqrtpd  xmm0, xmm0
-                            0xF2, 0x0F, 0x11, 0x0C, 0x24    // movsd   qword [rsp], xmm1
+                            0xF2, 0x0F, 0x11, 0x04, 0x24    // movsd   qword [rsp], xmm0
                           };
     
     Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
@@ -656,10 +723,8 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
     char       *x86_buffer = bin_tr->x86_buff;
     const int  max_ip      = bin_tr->max_ip;
 
-    x86_buffer[0] = 0x41;
-    x86_buffer[1] = 0x5B;
-
-    for (int ip = 0, x86_ip = 2; ip < max_ip; )
+    int rsp = 0;
+    for (int ip = 0, x86_ip = 0; ip < max_ip; )
     {
         switch (code_arr[ip])
         {
@@ -689,6 +754,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                 
                 Translate_Conditional_Jmp (x86_buffer, &x86_ip, jcc);
                 ip += 1 + sizeof (int);
+                rsp += 16;
 
                 break;
             }
@@ -699,12 +765,20 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                 break;
             
             case in:
+                if (rsp % 16 == 0)
+                    Translate_In_Aligned (x86_buffer, &x86_ip);
+                else
+                    Translate_In_Unaligned (x86_buffer, &x86_ip);
+
                 ip++;
+                rsp -= 8;
                 break;
 
             case out:
-                Translate_Out (x86_buffer, &x86_ip, bin_tr->x86_max_ip);
+                Translate_Out (x86_buffer, &x86_ip);
+
                 ip++;
+                rsp += 8;
                 break;
 
             case push:
@@ -716,7 +790,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                 int checksum = code_arr[ip] + 10 * code_arr[ip + 1] + 100 * code_arr[ip + 2];
                 //                  |                     |                        |
                 //                if RAM                if reg                   if num
-
+                
                 switch (checksum)
                 {
                     case EMPTY:
@@ -801,6 +875,8 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                         break;
                 }
 
+                rsp = (code_arr[ip] == push) ? rsp - 8 : rsp + 8;
+
                 break;
             }           
 
@@ -810,6 +886,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
             case dvd:
                 Translate_Arithmetics (x86_buffer, &x86_ip, code_arr[ip]);
                 ip++;
+                rsp += 8;
                 break;
 
             case Sqrt:
@@ -856,9 +933,11 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
     int jump_i = 0;
     int ip = 0, x86_ip = 0;
 
+    int rsp = 0;
+
     while (ip < max_ip)
     {
-        while (ip == jumps_arr[jump_i].to)
+        while (jump_i < n_jumps && ip == jumps_arr[jump_i].to)
         {
             int x86_from = jumps_arr[jump_i].x86_from;
 
@@ -866,7 +945,7 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
             {
                 case call:
                 case jmp:
-                    *(int *)(x86_buff + x86_from + 1) = x86_ip - x86_from;
+                    *(int *)(x86_buff + x86_from + 1) = x86_ip - (x86_from + 1 + sizeof (int));
                     break;
                 case jae:
                 case ja:
@@ -874,7 +953,7 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
                 case jb:
                 case je:
                 case jne:
-                    *(int *)(x86_buff + x86_from + 2) = x86_ip - x86_from;
+                    *(int *)(x86_buff + x86_from + 2) = x86_ip - (x86_from + 2 + sizeof (int));
                     break;
 
                 default:
@@ -916,11 +995,15 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
                 break;
 
             case in:
+                ip++;
+                x86_ip = (rsp % 16 == 0) ? x86_ip + 19 : x86_ip + 21;   // look in Commands.md
+                rsp -= 8;
+                break;
+
             case out:
                 ip++;
-                #if 0
-                x86_ip += ?;
-                #endif
+                x86_ip += 19;   // look in Commands.md
+                rsp += 8;
                 break;
 
             case push:
@@ -994,7 +1077,6 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
 
             default: MY_ASSERT (false, "code_arr[ip]", UNDEF_CMD, ERROR);
         }
-
     }
     
     return NO_ERRORS;
@@ -1077,7 +1159,7 @@ int Binary_Translator (const char *const input_name, const char *const output_na
     free (bin_tr.input_buff);
     MY_ASSERT (Tr_status != ERROR, "Translate ()", FUNC_ERROR, ERROR);
 
-    #if 1
+    #if 0
     FILE *output = Open_File (output_name, "wb");
     fwrite (bin_tr.x86_buff, sizeof (char), bin_tr.x86_max_ip, output);
     Close_File (output, output_name);
@@ -1087,7 +1169,7 @@ int Binary_Translator (const char *const input_name, const char *const output_na
 
     free (bin_tr.x86_buff);
 
-    printf ("Translation done!\n");
+    printf ("Thanks for choosing Ketchupp_JIT!\n");
 
     return NO_ERRORS;
 }
