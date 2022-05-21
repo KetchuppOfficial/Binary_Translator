@@ -14,5 +14,7 @@
 
 # Not for release
 
+test/
+
 Print_Double.c
 Try.*
