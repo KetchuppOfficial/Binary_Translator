@@ -1100,12 +1100,22 @@ static int Translate (struct Bin_Tr *const bin_tr)
                 jumps_arr[i].type, jumps_arr[i].from, jumps_arr[i].to, jumps_arr[i].x86_from);      
     #endif
 
+    #ifdef DEBUG
     int SP_status = Second_Passing (bin_tr);
+    #else
+    Second_Passing (bin_tr);
+    #endif
+
     MY_ASSERT (SP_status != ERROR, "Second_Passing ()", FUNC_ERROR, ERROR);
 
     if (n_jumps > 0)
     {
+        #ifdef DEBUG
         int TP_status = Third_Passing (bin_tr, jumps_arr, n_jumps);
+        #else
+        Third_Passing (bin_tr, jumps_arr, n_jumps);
+        #endif
+
         MY_ASSERT (TP_status != ERROR, "Third_Passing ()", FUNC_ERROR, ERROR);
 
         free (jumps_arr);
@@ -1136,7 +1146,12 @@ static int Extract_Code (struct Bin_Tr *const bin_tr, const char *const input_na
 
 static int JIT (struct Bin_Tr *bin_tr)
 {
+    #ifdef DEBUG
     int mprotect_res = mprotect (bin_tr->x86_buff, bin_tr->x86_max_ip, PROT_EXEC);
+    #else
+    mprotect (bin_tr->x86_buff, bin_tr->x86_max_ip, PROT_EXEC);
+    #endif
+
     MY_ASSERT (mprotect_res == 0, "mprotect ()", FUNC_ERROR, ERROR);
 
     void (* executor)(void) = (void (*)(void))(bin_tr->x86_buff);
@@ -1145,17 +1160,26 @@ static int JIT (struct Bin_Tr *bin_tr)
     return NO_ERRORS;
 }
 
-int Binary_Translator (const char *const input_name, const char *const output_name)
+int Binary_Translator (const char *const input_name)
 {
-    MY_ASSERT (input_name,  "const char *const input_name",  NULL_PTR, ERROR);
-    MY_ASSERT (output_name, "const char *const output_name", NULL_PTR, ERROR);
+    MY_ASSERT (input_name, "const char *const input_name", NULL_PTR, ERROR);
 
     struct Bin_Tr bin_tr = {};
     
+    #ifdef DEBUG
     int EC_status = Extract_Code (&bin_tr, input_name);
+    #else
+    Extract_Code (&bin_tr, input_name);
+    #endif
+
     MY_ASSERT (EC_status != ERROR, "Extract_Code ()", FUNC_ERROR, ERROR);
 
+    #ifdef DEBUG
     int Tr_status = Translate (&bin_tr);
+    #else
+    Translate (&bin_tr);
+    #endif
+
     free (bin_tr.input_buff);
     MY_ASSERT (Tr_status != ERROR, "Translate ()", FUNC_ERROR, ERROR);
 
