@@ -65,7 +65,8 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
     MY_ASSERT (jumps_arr, "struct Jump *jumps_arr", NE_MEM, NULL);
     int jump_i = 0;
 
-    int x86_ip = 0;
+    int x86_ip = 2; // we should also count "pop r11" that is 0x41, 0x5B
+
     for (int ip = 0; ip < max_ip; )
     {
         switch (code_arr[ip])
@@ -111,11 +112,12 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                 break;
 
             case in:
+                ip++;
+                break;
+
             case out:
                 ip++;
-                #if 0
-                x86_ip += ?;
-                #endif
+                x86_ip += 37;
                 break;
 
             case push:
@@ -182,12 +184,14 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                 ip++;
                 break;
 
-            case sqrt:
+            case Sqrt:
                 x86_ip += 14;   // look in Commands.md
                 ip++;
                 break;
 
-            default: MY_ASSERT (false, "code_arr[ip]", UNDEF_CMD, NULL);
+            default: 
+                MY_ASSERT (false, "code_arr[ip]", UNDEF_CMD, NULL);
+                break;
         }
     }
 
@@ -223,7 +227,12 @@ static inline void Translate_Hlt (char *const x86_buffer, int *const x86_ip)
 
 static inline void Translate_Ret (char *const x86_buffer, int *const x86_ip)
 {
-    x86_buffer[(*x86_ip)++] = 0x3C;
+    char opcode[] = {
+                        0x41, 0x53,     // push r11
+                        0xC3            // ret
+                    };
+    
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 }
 
 static inline void Translate_Call (char *const x86_buffer, int *const x86_ip)
@@ -285,6 +294,35 @@ static inline int Translate_Conditional_Jmp (char *const x86_buffer, int *const 
     
     return NO_ERRORS;
 }
+
+#if 0
+static inline void Translate_Out (char *const x86_buffer, int *const x86_ip, const int x86_max_ip)
+{
+    char opcode[] = {
+                        0x48, 0xBF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // mov rdi, "x86_buff + max_ip"
+                        0xF2, 0x0F, 0x10, 0x04, 0x24,                                   // movsd   xmm0, qword [rsp]
+                        0x48, 0x83, 0xC4, 0x08,                                         // add     rsp, 8
+
+                        0x50,   // push rax
+                        0x53,   // push rbx
+                        0x51,   // push rcx
+                        0x52,   // push rdx
+
+                        0xB8, 0x01, 0x00, 0x00, 0x00,   // mov eax, 1
+                        0xE8, 0x00, 0x00, 0x00, 0x00,   // call printf
+
+                        0x5A,   // pop rdx
+                        0x59,   // pop rcx
+                        0x5B,   // pop rbx
+                        0x58    // pop rax
+                    };
+
+    *(uint64_t *)(opcode + 2) = (uint64_t)x86_buffer + (uint64_t)x86_max_ip;
+    *(uint32_t *)(opcode + 29) = (uint64_t)opcode + 28 - (uint32_t)0x21D0;
+
+    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
+}
+#endif
 
 static inline void Translate_Pop (char *const x86_buff, int *const x86_ip)
 {
@@ -583,7 +621,7 @@ static int Translate_Arithmetics (char *const x86_buffer, int *const x86_ip, con
     return NO_ERRORS;
 }
 
-static void Translate_Sqrt (char *const x86_buffer, int *const x86_ip)
+static inline void Translate_Sqrt (char *const x86_buffer, int *const x86_ip)
 {
     const char opcode[] = {
                             0xF2, 0x0F, 0x10, 0x04, 0x24,   // movsd   xmm0, qword [rsp]
@@ -617,8 +655,11 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
     const char *code_arr   = bin_tr->input_buff;
     char       *x86_buffer = bin_tr->x86_buff;
     const int  max_ip      = bin_tr->max_ip;
-    
-    for (int ip = 0, x86_ip = 0; ip < max_ip; )
+
+    x86_buffer[0] = 0x41;
+    x86_buffer[1] = 0x5B;
+
+    for (int ip = 0, x86_ip = 2; ip < max_ip; )
     {
         switch (code_arr[ip])
         {
@@ -658,7 +699,11 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                 break;
             
             case in:
+                ip++;
+                break;
+
             case out:
+                Translate_Out (x86_buffer, &x86_ip, bin_tr->x86_max_ip);
                 ip++;
                 break;
 
@@ -767,7 +812,7 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                 ip++;
                 break;
 
-            case sqrt:
+            case Sqrt:
                 Translate_Sqrt (x86_buffer, &x86_ip);
                 ip++;
                 break;
@@ -942,7 +987,7 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
                 ip++;
                 break;
 
-            case sqrt:
+            case Sqrt:
                 x86_ip += 14;   // look in Commands.md
                 ip++;
                 break;
@@ -1007,6 +1052,17 @@ static int Extract_Code (struct Bin_Tr *const bin_tr, const char *const input_na
     return NO_ERRORS;
 }
 
+static int JIT (struct Bin_Tr *bin_tr)
+{
+    int mprotect_res = mprotect (bin_tr->x86_buff, bin_tr->x86_max_ip, PROT_EXEC);
+    MY_ASSERT (mprotect_res == 0, "mprotect ()", FUNC_ERROR, ERROR);
+
+    void (* executor)(void) = (void (*)(void))(bin_tr->x86_buff);
+    executor();
+
+    return NO_ERRORS;
+}
+
 int Binary_Translator (const char *const input_name, const char *const output_name)
 {
     MY_ASSERT (input_name,  "const char *const input_name",  NULL_PTR, ERROR);
@@ -1021,18 +1077,17 @@ int Binary_Translator (const char *const input_name, const char *const output_na
     free (bin_tr.input_buff);
     MY_ASSERT (Tr_status != ERROR, "Translate ()", FUNC_ERROR, ERROR);
 
+    #if 1
     FILE *output = Open_File (output_name, "wb");
     fwrite (bin_tr.x86_buff, sizeof (char), bin_tr.x86_max_ip, output);
     Close_File (output, output_name);
-
-    #if 0
-    Generate_ELF (output_buff, output);
     #endif
 
-    int mprotect_res = mprotect (bin_tr.x86_buff, bin_tr.x86_max_ip, PROT_EXEC);
-    printf ("%d\n", mprotect_res);
+    JIT (&bin_tr);
 
     free (bin_tr.x86_buff);
+
+    printf ("Translation done!\n");
 
     return NO_ERRORS;
 }
