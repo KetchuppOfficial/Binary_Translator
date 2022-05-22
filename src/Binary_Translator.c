@@ -297,26 +297,27 @@ static inline int Translate_Conditional_Jmp (char *const x86_buffer, int *const 
     switch (jcc)
     {
         case JAE:
-            opcode[6] = 0x83;
+            opcode[6] = 0x83;   // jae
             break;
         case JA:
-            opcode[6] = 0x87;
+            opcode[6] = 0x87;   // ja
             break;
         case JBE:
-            opcode[6] = 0x86;
+            opcode[6] = 0x86;   // jbe
             break;
         case JB:
-            opcode[6] = 0x82;
+            opcode[6] = 0x82;   // jb
             break;
         case JE:
-            opcode[6] = 0x84;
+            opcode[6] = 0x84;   // je
             break;
         case JNE:
-            opcode[6] = 0x85;
+            opcode[6] = 0x85;   // jne
             break;
 
         default:
             MY_ASSERT (false, "const enum Instructions jcc", UNEXP_VAL, ERROR);
+            break;
     }
 
     Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
