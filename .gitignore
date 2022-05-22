@@ -1,6 +1,7 @@
 # Service files
 
 *.txt
+!data/*.txt
 
 *.out
 
@@ -9,6 +10,7 @@
 *.d
 
 *.bin
+!data/*.bin
 
 *.log
 
