@@ -2,7 +2,7 @@
 
 # Binary Translator
 
-This project is the final part of a course on programming and computer architecture by [Ilya Dedinsky (aka ded32)](https://github.com/ded32) that he teaches in MIPT.
+This project is the final part of the course on programming and computer architecture by [Ilya Dedinsky (aka ded32)](https://github.com/ded32) that he teaches in MIPT.
 
 ## General Information
 
@@ -16,13 +16,18 @@ Before installing **Binary_Translator** make sure you have [My_Lib](https://gith
 
 **Binary_Translator** is released for Linux only.
 
-Download this repository:
+**Step 1:** Clone this repository
 ```bash
 git clone git@github.com:KetchuppOfficial/Binary_Translator.git
 cd Binary_Translator
 ```
 
-Change the path to **My_Lib** to your own in Makefile.
+**Step 2:** Clone repositories with My_Lib, if you haven't already done that.
+```bash
+git@github.com:KetchuppOfficial/My_Lib.git
+```
+
+**Step 3:** Change the path to **My_Lib** into your own in Makefile.
 ```Makefile
 CC     = gcc
 CFLAGS = -Wall -Werror -Wshadow -Wfloat-equal -Wswitch-default
@@ -32,12 +37,35 @@ DEBUG = -g
 MY_LIB_PATH  = /home/ketchupp/Programming/My_Lib/   # <------ Here
 ```
 
-Then compile the program using tool **make**:
+**Step 4:** Build the project
 ```bash
-make
+ketchupp@ketchupp-HVY-WXX9:~/Programming/Semester_2/Binary_Translator$ make
+Collecting dependencies for "src/Binary_Translator.c"...
+Collecting dependencies for "src/main.c"...
+Compiling "src/main.c"...
+Compiling "src/Binary_Translator.c"...
+Linking project...
+```
+Some options are supported:
+
+1) You can turn on all **MY_ASSERT** macros from **My_Lib** (kind of debug mode):
+```bash
+make OPT=-DDEBUG
+```
+2) Some basic compiler options such as optimization flag **-O2** can be used:
+```bash
+make OPT=-O2
+```
+3) Binary translator can be used in *stress test* mode (executes program for 10 000 000 times):
+```bash
+make OPT=-DSTRESS_TEST
+```
+4) Previous options can be used simultaneously:
+```bash
+make OPT=-DDEBUG\ -DSTRESS_TEST\ -O2    # don't forget backslash!
 ```
 
-Congratulations! You can finally use **Binary_Translator**. To run the program, use **make** again:
+**Step 4:** Running
 ```bash
 make run IN=<input_file_name>
 ```
@@ -45,27 +73,100 @@ The program won't work if you don't specify <input_file_name>.
 
 ## Performance comparison
 
-I implemented a program that solves a quadratic equation for 100000000 times. It was written on my own **assembler** language. Actually, there are two version of this program: the first one is for my **processor** (it contains **hlt** instructions), the second one is for **binary translator** (it contains **ret** instructions). You can find them [here](/data). Then, I used my **assembler** to make binary files of both versions. These programs were run on my **processor** and **binary translator**.
+The performance of binary translator and processor emulator was tested on two programs implemented on my assembler language. Both programs have two versions: the first one - for translator, the second one - for emulator. The difference between them is that emulator version uses **hlt** instructions to end execution, while translator version uses **ret** for the same perpose.
 
-The goal was to compare execution time and find out, how faster **binary translator** is. I carried out the measurements by tool **time**. The execution time of the entire program was measured in both cases. The measurement error caused by translating bytecode into machine code by **binary translator** is negligible comparing to the whole execution time.
+The goal is to compare execution time and find out, how faster binary translator is. I carried out the measurements by tool **time**. The execution time of the entire program was measured in both cases. The measurement error caused by translating bytecode into machine code by translator is negligible comparing to the whole execution time. You can find proofs below.
 
-**My Processor (-O0)**
+### Quadratic equation
 
+This test is to solve the good old quadratic equation. I've implemented a program that solves equation 124.1 * x^2 - 2345.8 * x + 294.4 = 0. You can find source code [here](/data/Quadratic_For_Tests.txt).
 
-|    real   |    user   |    sys    |
-|-----------|-----------|-----------|
-| 1m11,658s | 1m11,192s | 0m0,436s  |
+**My Processor**
 
-**Binary Translator (-O0)**
+| real, s | user, s |
+|------- -|---------|
+| 75.225  | 75.119  |
+| 74.361  | 74.281  |
+| 74.174  | 74.104  |
+| 75.047  | 74.954  |
+| 74.494  | 74.410  |
 
-|   real   |    user   |    sys    |
-|----------|-----------|-----------|
-| 0m3,274s | 0m3,268s  | 0m0,004s  |
+|         | real, s | user, s |
+|---------|---------|---------|
+| average |  74.7   |  74.6   |
+| std dev |   0.4   |   0.3   |
 
-We see that **binary translator** is approximately 22 times faster than **processor**.
+**Binary Translator**
+
+One calculation:
+
+| real, s | user, s |
+|------- -|---------|
+|  0.002  |  0.002  |
+
+10 000 000 calculations:
+
+| real, s | user, s |
+|------- -|---------|
+|  3.284  |  3.277  |
+|  3.276  |  3.268  |
+|  3.269  |  3.267  |
+|  3.276  |  3.269  |
+|  3.274  |  3.267  |
+
+|         | real, s | user, s |
+|---------|---------|---------|
+| average |  3.276  |  3,270  |
+| std dev |  0.003  |  0.002  |
+
+We see that binary translator is 22,8 +- 0.1 times faster than processor.
+
+### Factorial
+
+This test is to calculate factorial of some number. I've written a program that calculates 10!. You can find source code [here](/data/Factorial_For_Tests.txt).
+
+**My Processor:**
+
+| real, s | user, s |
+|---------|---------|
+| 119.849 | 119.799 |
+| 120.496 | 120.414 |
+| 121.613 | 121.484 |
+| 121.032 | 120.926 |
+| 120.856 | 120.774 |
+
+|         | real, s | user, s |
+|---------|---------|---------|
+| average |  120.8  |  120.7  |
+| std dev |    0.5  |    0.5  |
+
+**Binary Translator:**
+
+One calculation:
+
+| real, s | user, s |
+|------- -|---------|
+|  0.002  |  0.002  |
+
+10 000 000 calculations:
+
+| real, s | user, s |
+|---------|---------|
+|  5.716  |  5.707  |
+|  5.719  |  5.703  |
+|  5.696  |  5.689  |
+|  5.689  |  5.685  |
+|  5.728  |  5.717  |
+
+|         | real, s | user, s |
+|---------|---------|---------|
+| average |  5.71   |  5.70   |
+| std dev |  0.01   |  0.01   |
+
+Finally, binary translator is 21,2 +- 0,1 times faster than my processor emulator in calculating factorial.
 
 ## Future
 
 First of all, it's reasonable to perform some optimizations on machine code becore executing. It will reduce the number of instructions and, consequently, the performancy will increase.
 
-Second and the last, this task can be continued it terms of generating an ELF file as a result of **binary translator** work.
+Second and the last, this task can be continued it terms of generating an ELF file as a result of binary translation.
