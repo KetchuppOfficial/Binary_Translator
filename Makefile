@@ -44,4 +44,3 @@ clean:
 run: $(BIN)Binary_Translator.out
 	@echo "Running \"$<\"..."
 	@$(BIN)Binary_Translator.out $(IN)
-	@echo "Completed"
