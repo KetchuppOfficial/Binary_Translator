@@ -2,7 +2,7 @@
 
 # Binary Translator
 
-This project is the final part of the course on programming and computer architecture by [Ilya Dedinsky (aka ded32)](https://github.com/ded32) that he teaches in MIPT.
+This project is the final part of the programming and computer architecture course by [Ilya Dedinsky (aka ded32)](https://github.com/ded32).
 
 ## General Information
 
@@ -16,30 +16,18 @@ Before installing **Binary_Translator** make sure you have [My_Lib](https://gith
 
 **Binary_Translator** is released for Linux only.
 
-**Step 1:** Clone this repository
+**Step 1:** Make empty folder.
+
+**Step 2:** Clone Binary_Translator and My_Lib repositories to this folder:
 ```bash
 git clone git@github.com:KetchuppOfficial/Binary_Translator.git
+git clone git@github.com:KetchuppOfficial/My_Lib.git
 cd Binary_Translator
 ```
 
-**Step 2:** Clone repositories with My_Lib, if you haven't already done that.
+**Step 4:** Build the project. 
 ```bash
-git@github.com:KetchuppOfficial/My_Lib.git
-```
-
-**Step 3:** Change the path to **My_Lib** into your own in Makefile.
-```Makefile
-CC     = gcc
-CFLAGS = -Wall -Werror -Wshadow -Wfloat-equal -Wswitch-default
-
-DEBUG = -g
-
-MY_LIB_PATH  = /home/ketchupp/Programming/My_Lib/   # <------ Here
-```
-
-**Step 4:** Build the project
-```bash
-ketchupp@ketchupp-HVY-WXX9:~/Programming/Semester_2/Binary_Translator$ make
+username@machine:~/Some_Temp_Dir/Binary_Translator$ make
 Collecting dependencies for "src/Binary_Translator.c"...
 Collecting dependencies for "src/main.c"...
 Compiling "src/main.c"...
