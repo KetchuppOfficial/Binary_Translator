@@ -1,7 +1,7 @@
 #ifndef BINARY_TRANSLATOR_INSLUDED
 #define BINARY_TRANSLATOR_INSLUDED
 
-#include "../../../My_Lib/My_Lib.h"
+#include "My_Lib.h"
 #include <inttypes.h>
 #include <string.h>
 #include <sys/mman.h>   // for mprotect ()
@@ -13,14 +13,14 @@
 
 #define DEFCMD_(num, name, n_args) name = num,
 
+#define N_INSTRUCTIONS 28
+
 enum Instructions
 {
     #include "../include/Commands_List.h"
 };
 
 #undef DEFCMD_
-
-#define N_INSTRUCTIONS 28
 
 enum ISA
 {
