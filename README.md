@@ -123,7 +123,8 @@ We see that the binary translator is **22,8 +- 0.1** times faster than the proce
 
 ### Factorial
 
-This test is to calculate factorial of some number. I've written a program that calculates 10!. You can find source code [here](/data/Factorial_For_Tests.txt).
+This test is to calculate factorial of some number.
+I've written a program that calculates 10!. You can find source code [here](/data/Factorial_For_Tests.txt).
 
 **My Processor:**
 
