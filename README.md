@@ -25,7 +25,7 @@ git clone git@github.com:KetchuppOfficial/My_Lib.git
 cd Binary_Translator
 ```
 
-**Step 4:** Build the project. 
+**Step 3:** Build the project. 
 ```bash
 username@machine:~/Some_Temp_Dir/Binary_Translator$ make
 Collecting dependencies for "src/Binary_Translator.c"...
