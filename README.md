@@ -56,11 +56,11 @@ make OPT=-DDEBUG
 ```bash
 make OPT=-O2
 ```
-3) Binary translator can be used in *stress test* mode (executes program for 10 000 000 times):
+3) Binary translator supports *stress test mode* (program is executed for 10 000 000 times):
 ```bash
 make OPT=-DSTRESS_TEST
 ```
-4) Previous options can be used simultaneously:
+4) It's possible to use previous options simultaneously:
 ```bash
 make OPT=-DDEBUG\ -DSTRESS_TEST\ -O2    # don't forget backslash!
 ```
@@ -73,13 +73,13 @@ The program won't work if you don't specify <input_file_name>.
 
 ## Performance comparison
 
-The performance of binary translator and processor emulator was tested on two programs implemented on my assembler language. Both programs have two versions: the first one - for translator, the second one - for emulator. The difference between them is that emulator version uses **hlt** instructions to end execution, while translator version uses **ret** for the same perpose.
+The performance of binary translator and processor emulator was tested on two programs implemented on my assembler language. Both programs have two versions: the first one - for the translator, the second one - for the emulator. The difference between them is that the emulator version uses **hlt** instructions to return from the program, while translator version uses **ret** for the same purpose.
 
-The goal is to compare execution time and find out, how faster binary translator is. I carried out the measurements by tool **time**. The execution time of the entire program was measured in both cases. The measurement error caused by translating bytecode into machine code by translator is negligible comparing to the whole execution time. You can find proofs below.
+The goal is to compare execution time and find out, how faster the binary translator is comparing to the processor emulator. I carried out the measurements by tool **time**. The execution time of the entire program was measured in both cases. The measurement error caused by translating bytecode into machine code by the translator is negligible comparing to the whole execution time. You can find proofs below.
 
 ### Quadratic equation
 
-This test is to solve the good old quadratic equation. I've implemented a program that solves equation 124.1 * x^2 - 2345.8 * x + 294.4 = 0. You can find source code [here](/data/Quadratic_For_Tests.txt).
+This test is to solve the good old quadratic equation. I've written a program that solves equation 124.1 * x^2 - 2345.8 * x + 294.4 = 0. You can find source code [here](/data/Quadratic_For_Tests.txt).
 
 **My Processor**
 
@@ -119,7 +119,7 @@ One calculation:
 | average |  3.276  |  3,270  |
 | std dev |  0.003  |  0.002  |
 
-We see that binary translator is 22,8 +- 0.1 times faster than processor.
+We see that the binary translator is **22,8 +- 0.1** times faster than the processor emulator in terms of solving quadratic equations.
 
 ### Factorial
 
@@ -163,10 +163,10 @@ One calculation:
 | average |  5.71   |  5.70   |
 | std dev |  0.01   |  0.01   |
 
-Finally, binary translator is 21,2 +- 0,1 times faster than my processor emulator in calculating factorial.
+Finally, binary translator is **21,2 +- 0,1** times faster than my processor emulator in calculating factorial.
 
 ## Future
 
-First of all, it's reasonable to perform some optimizations on machine code becore executing. It will reduce the number of instructions and, consequently, the performancy will increase.
+First of all, it's reasonable to perform some optimizations on the machine code before execution. It will reduce the number of instructions and, consequently, the performance will increase.
 
-Second and the last, this task can be continued it terms of generating an ELF file as a result of binary translation.
+The second and the last, this task can be continued it terms of generating an ELF file as a result of binary translation.
