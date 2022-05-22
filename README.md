@@ -84,7 +84,7 @@ This test is to solve the good old quadratic equation. I've implemented a progra
 **My Processor**
 
 | real, s | user, s |
-|------- -|---------|
+|---------|---------|
 | 75.225  | 75.119  |
 | 74.361  | 74.281  |
 | 74.174  | 74.104  |
@@ -101,13 +101,13 @@ This test is to solve the good old quadratic equation. I've implemented a progra
 One calculation:
 
 | real, s | user, s |
-|------- -|---------|
+|---------|---------|
 |  0.002  |  0.002  |
 
 10 000 000 calculations:
 
 | real, s | user, s |
-|------- -|---------|
+|---------|---------|
 |  3.284  |  3.277  |
 |  3.276  |  3.268  |
 |  3.269  |  3.267  |
@@ -145,7 +145,7 @@ This test is to calculate factorial of some number. I've written a program that 
 One calculation:
 
 | real, s | user, s |
-|------- -|---------|
+|---------|---------|
 |  0.002  |  0.002  |
 
 10 000 000 calculations:
