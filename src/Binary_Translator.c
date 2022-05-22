@@ -4,36 +4,45 @@
 //                                    FIRST PASSING                                    //
 //=====================================================================================//
 
-#define DEFCMD_(num, name, n_args) name = num,
-
-enum Instructions
+struct Instruction
 {
-    #include "../include/Commands_List.h"
+    int name;
+    int proc_num;
+    int proc_sz;
+    int x86_sz;
+    int delta_rsp;
 };
 
-#undef DEFCMD_
-
-enum PUSH_POP
+static const struct Instruction ISA_Consts[N_INSTRUCTIONS] =
 {
-    EMPTY      =   0,   // pop
-
-    AX         =  10,   // push/pop ax
-    BX         =  20,   // push/pop bx
-    CX         =  30,   // push/pop cx
-    DX         =  40,   // push/pop dx
-
-    RAM_AX     =  11,   // push/pop [ax]
-    RAM_BX     =  21,   // push/pop [bx]
-    RAM_CX     =  31,   // push/pop [cx]
-    RAM_DX     =  41,   // push/pop [dx]
-
-    NUM        = 100,   // push 4
-    RAM_NUM    = 101,   // push/pop [4]
-
-    RAM_AX_NUM = 111,   // push/pop [ax + 4]
-    RAM_BX_NUM = 121,   // push/pop [bx + 4]
-    RAM_CX_NUM = 131,   // push/pop [cx + 4]
-    RAM_DX_NUM = 141,   // push/pop [dx + 4]   
+    {hlt,               HLT,  1, 10,  0},
+    {call,             CALL,  5,  5,  0},
+    {jmp,               JMP,  5,  5,  0},
+    {jae,               JAE,  5, 11, 16},
+    {ja,                 JA,  5, 11, 16},
+    {jbe,               JBE,  5, 11, 16},
+    {jb,                 JB,  5, 11, 16},
+    {je,                 JE,  5, 11, 16},
+    {jne,               JNE,  5, 11, 16},
+    {ret,               RET,  1,  1,  0},
+    {in_aligned,         IN,  1, 19, -8},
+    {in_unaligned,       IN,  1, 21, -8},
+    {out,               OUT,  1, 19,  8},
+    {push_num,         PUSH, 12, 11, -8},
+    {push_ram_num,     PUSH,  8,  9, -8},
+    {push_reg,         PUSH,  4,  1, -8},
+    {push_ram_reg,     PUSH,  4,  4, -8},
+    {push_ram_reg_num, PUSH,  8,  8, -8},
+    {pop,               POP,  4,  1,  8},
+    {pop_ram_num,       POP,  8,  9,  8},
+    {pop_reg,           POP,  4,  1,  8},
+    {pop_ram_reg,       POP,  4,  4,  8},
+    {pop_ram_reg_num,   POP,  8,  8,  8},
+    {add,               ADD,  1, 24,  8},
+    {sub,               SUB,  1, 24,  8},
+    {mul,               MUL,  1, 24,  8},
+    {dvd,               DVD,  1, 24,  8},
+    {Sqrt,             SQRT,  1, 14,  0}
 };
 
 struct Jump
@@ -48,8 +57,8 @@ struct Bin_Tr
 {
     char *input_buff;
     char *x86_buff;
-    int max_ip;
-    int x86_max_ip;
+    int   max_ip;
+    int   x86_max_ip;
 };
 
 static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
@@ -58,7 +67,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
     MY_ASSERT (bin_tr->input_buff, "const char *const input", NULL_PTR, NULL);
     MY_ASSERT (n_jumps,            "int *const n_jumps",      NULL_PTR, NULL);
 
-    const int   max_ip   = bin_tr->max_ip;
+    const int   max_ip    = bin_tr->max_ip;
     const char *proc_buff = bin_tr->input_buff;
 
     struct Jump *jumps_arr = (struct Jump *)calloc (max_ip, sizeof (struct Jump));
@@ -66,112 +75,127 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
     int jump_i = 0;
 
     int x86_ip = 0;
-    int rsp = 0;
 
-    for (int ip = 0; ip < max_ip; )
+    for (int ip = 0, rsp = 0; ip < max_ip; )
     {
         switch (proc_buff[ip])
         {
-            case hlt:
-                x86_ip += 10;   // look in Commands.md
-                ip++;
+            case HLT:
+                ip     += ISA_Consts[hlt].proc_sz;
+                x86_ip += ISA_Consts[hlt].x86_sz;
+                rsp    += ISA_Consts[hlt].delta_rsp;
                 break;
 
-            case call:
-            case jmp:
-            case jae:
-            case ja:
-            case jbe:
-            case jb:
-            case jne:
-            case je:
+            case CALL:
+            case JMP:
             {
                 int jump_to = *(int *)(proc_buff + ip + 1);
-                jumps_arr[jump_i].to = jump_to;
-                jumps_arr[jump_i].from = ip;
+                jumps_arr[jump_i].from     = ip;
+                jumps_arr[jump_i].to       = jump_to;
+                jumps_arr[jump_i].x86_from = x86_ip;
+                jumps_arr[jump_i++].type   = (int)proc_buff[ip];
 
-                if (proc_buff[ip] == call || proc_buff[ip] == jmp)
-                {
-                    jumps_arr[jump_i].x86_from = x86_ip;        // ip of the first byte of jump
-                    x86_ip += 5;    // look in Commands.md
-                }
-                else
-                {
-                    jumps_arr[jump_i].x86_from = x86_ip + 5;    // ip of the first byte of jump
-                    x86_ip += 11;   // look in Commands.md
-                    rsp += 16;
-                }
-
-                jumps_arr[jump_i++].type = (int)proc_buff[ip];
-                ip += 1 + sizeof (int);
+                ip     += ISA_Consts[call].proc_sz;
+                x86_ip += ISA_Consts[call].x86_sz;
+                rsp    += ISA_Consts[call].delta_rsp;
 
                 break;
             }
 
-            case ret:
-                x86_ip++;   // look in Commands.md
-                ip++;
-                break;
-
-            case in:
-                ip++;
-                x86_ip = (rsp % 16 == 0) ? x86_ip + 19 : x86_ip + 21;   // look in Commands.md
-                rsp -= 8;
-                break;
-
-            case out:
-                ip++;
-                x86_ip += 19;   // look in Commands.md
-                rsp += 8;
-                break;
-
-            case push:
-            case pop:
+            case JAE:
+            case JA:
+            case JBE:
+            case JB:
+            case JNE:
+            case JE:
             {
-                ip++;
-                int checksum = proc_buff[ip] + 10 * proc_buff[ip + 1] + 100 * proc_buff[ip + 2];
+                int jump_to = *(int *)(proc_buff + ip + 1);
+                jumps_arr[jump_i].from     = ip;
+                jumps_arr[jump_i].to       = jump_to;
+                jumps_arr[jump_i].x86_from = x86_ip + 5;            // ip of the first byte of jump
+                jumps_arr[jump_i++].type   = (int)proc_buff[ip];
+
+                ip     += ISA_Consts[jae].proc_sz;
+                x86_ip += ISA_Consts[jae].x86_sz;
+                rsp    += ISA_Consts[jae].delta_rsp;
+
+                break;
+            }
+
+            case RET:
+                ip     += ISA_Consts[ret].proc_sz;
+                x86_ip += ISA_Consts[ret].x86_sz;
+                rsp    += ISA_Consts[ret].delta_rsp;
+                break;
+
+            case IN:
+                if (rsp % 16 == 0)
+                {
+                    ip     += ISA_Consts[in_aligned].proc_sz;
+                    x86_ip += ISA_Consts[in_aligned].x86_sz;
+                    rsp    += ISA_Consts[in_aligned].delta_rsp;
+                }
+                else
+                {
+                    ip     += ISA_Consts[in_unaligned].proc_sz;
+                    x86_ip += ISA_Consts[in_unaligned].x86_sz;
+                    rsp    += ISA_Consts[in_unaligned].delta_rsp;
+                }
+
+                break;
+
+            case OUT:
+                ip     += ISA_Consts[out].proc_sz;
+                x86_ip += ISA_Consts[out].x86_sz;
+                rsp    += ISA_Consts[out].delta_rsp;
+                break;
+
+            case PUSH:
+            case POP:
+            {
+                int checksum = proc_buff[ip + 1] + 10 * proc_buff[ip + 2] + 100 * proc_buff[ip + 3];
                 //                  |                     |                        |
                 //                if RAM                if reg                   if num
 
                 switch (checksum)
                 {                    
                     case EMPTY:
-                        ip += 3;
-                        x86_ip++;       // look in Commands.md
+                        ip     += ISA_Consts[pop].proc_sz;
+                        x86_ip += ISA_Consts[pop].x86_sz;
                         break;
                     
                     case NUM:
-                        ip += 3 + sizeof (double);
-                        x86_ip += 11;   // look in Commands.md
+                        ip     += ISA_Consts[push_num].proc_sz;
+                        x86_ip += ISA_Consts[push_num].x86_sz;
                         break;
 
                     case RAM_NUM:
-                        ip += 3 + sizeof (int);
-                        x86_ip += 9;    // look in Commands.md
+                        ip     += ISA_Consts[push_ram_num].proc_sz;
+                        x86_ip += ISA_Consts[push_ram_num].x86_sz;
                         break;
 
                     case AX:
                     case BX:
                     case CX:
                     case DX:
-                        ip += 3;
-                        x86_ip++;       // look in Commands.md
+                        ip     += ISA_Consts[push_reg].proc_sz;
+                        x86_ip += ISA_Consts[push_reg].x86_sz;
                         break;
 
                     case RAM_AX:
                     case RAM_BX:
                     case RAM_CX:
                     case RAM_DX:
-                        ip += 3;
-                        x86_ip += 4;    // look in Commands.md
+                        ip     += ISA_Consts[push_ram_reg].proc_sz;
+                        x86_ip += ISA_Consts[push_ram_reg].x86_sz;
                         break;
 
                     case RAM_AX_NUM:
                     case RAM_BX_NUM:
                     case RAM_CX_NUM:
                     case RAM_DX_NUM:
-                        x86_ip += 8;    // look in Commands.md
-                        ip += 3 + sizeof (int);
+                        ip     += ISA_Consts[push_ram_reg_num].proc_sz;
+                        x86_ip += ISA_Consts[push_ram_reg_num].x86_sz;
                         break;
 
                     default:
@@ -179,23 +203,23 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                         break;
                 }
 
-                rsp = (proc_buff[ip] == push) ? rsp - 8 : rsp + 8;
-
+                rsp += (proc_buff[ip] == PUSH) ? ISA_Consts[push_num].delta_rsp : ISA_Consts[pop].delta_rsp;
                 break;
             }
 
-            case add:
-            case sub:
-            case mul:
-            case dvd:
-                x86_ip += 24;   // look in Commands.md
-                ip++;
-                rsp += 8;
+            case ADD:
+            case SUB:
+            case MUL:
+            case DVD:
+                ip     += ISA_Consts[add].proc_sz;
+                x86_ip += ISA_Consts[add].x86_sz;
+                rsp    += ISA_Consts[add].delta_rsp;
                 break;
 
-            case Sqrt:
-                x86_ip += 14;   // look in Commands.md
-                ip++;
+            case SQRT:
+                ip     += ISA_Consts[Sqrt].proc_sz;
+                x86_ip += ISA_Consts[Sqrt].x86_sz;
+                rsp    += ISA_Consts[Sqrt].delta_rsp;
                 break;
 
             default: 
@@ -272,22 +296,22 @@ static inline int Translate_Conditional_Jmp (char *const x86_buffer, int *const 
 
     switch (jcc)
     {
-        case jae:
+        case JAE:
             opcode[6] = 0x83;
             break;
-        case ja:
+        case JA:
             opcode[6] = 0x87;
             break;
-        case jbe:
+        case JBE:
             opcode[6] = 0x86;
             break;
-        case jb:
+        case JB:
             opcode[6] = 0x82;
             break;
-        case je:
+        case JE:
             opcode[6] = 0x84;
             break;
-        case jne:
+        case JNE:
             opcode[6] = 0x85;
             break;
 
@@ -660,16 +684,16 @@ static int Translate_Arithmetics (char *const x86_buffer, int *const x86_ip, con
 
     switch (instruction)
     {
-        case add:
+        case ADD:
             math_instruction[2] = 0x58;     // addsd   xmm1, xmm2
             break;
-        case sub:
+        case SUB:
             math_instruction[2] = 0x5C;     // subsd   xmm1, xmm2
             break;
-        case mul:
+        case MUL:
             math_instruction[2] = 0x59;     // mulsd   xmm1, xmm2
             break;
-        case dvd:
+        case DVD:
             math_instruction[2] = 0x5E;     // divsd   xmm1, xmm2
             break;
 
@@ -728,66 +752,87 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
     {
         switch (proc_buff[ip])
         {
-            case hlt:
+            case HLT:
                 Translate_Hlt (x86_buffer, &x86_ip);
-                ip++;
+
+                ip  += ISA_Consts[hlt].proc_sz;
+                rsp += ISA_Consts[hlt].delta_rsp;
+
                 break;
             
-            case call:
+            case CALL:
                 Translate_Call (x86_buffer, &x86_ip);
-                ip += 1 + sizeof (int);
+
+                ip  += ISA_Consts[call].proc_sz;
+                rsp += ISA_Consts[call].delta_rsp;
+
                 break;
 
-            case jmp:
+            case JMP:
                 Translate_Jmp (x86_buffer, &x86_ip);
-                ip += 1 + sizeof (int);
+
+                ip  += ISA_Consts[jmp].proc_sz;
+                rsp += ISA_Consts[jmp].delta_rsp;
+                
                 break;
             
-            case jae:
-            case ja:
-            case jbe:
-            case jb:
-            case jne:
-            case je:
+            case JAE:
+            case JA:
+            case JBE:
+            case JB:
+            case JNE:
+            case JE:
             {
                 int jcc = (int)proc_buff[ip];
                 
                 Translate_Conditional_Jmp (x86_buffer, &x86_ip, jcc);
-                ip += 1 + sizeof (int);
-                rsp += 16;
+
+                ip  += ISA_Consts[jae].proc_sz;
+                rsp += ISA_Consts[jae].delta_rsp;
 
                 break;
             }
 
-            case ret:
+            case RET:
                 Translate_Ret (x86_buffer, &x86_ip);
-                ip++;
+
+                ip  += ISA_Consts[ret].proc_sz;
+                rsp += ISA_Consts[ret].delta_rsp;
+
                 break;
             
-            case in:
+            case IN:
                 if (rsp % 16 == 0)
+                {
                     Translate_In_Aligned (x86_buffer, &x86_ip);
+
+                    ip  += ISA_Consts[in_aligned].proc_sz;
+                    rsp += ISA_Consts[in_aligned].delta_rsp;
+                }
                 else
+                {
                     Translate_In_Unaligned (x86_buffer, &x86_ip);
 
-                ip++;
-                rsp -= 8;
+                    ip  += ISA_Consts[in_unaligned].proc_sz;
+                    rsp += ISA_Consts[in_unaligned].delta_rsp;
+                }
+
                 break;
 
-            case out:
+            case OUT:
                 Translate_Out (x86_buffer, &x86_ip);
 
-                ip++;
-                rsp += 8;
+                ip  += ISA_Consts[out].proc_sz;
+                rsp += ISA_Consts[out].delta_rsp;
+
                 break;
 
-            case push:
-            case pop:
+            case PUSH:
+            case POP:
             {
                 const char instr_name = proc_buff[ip];
 
-                ip++;
-                int checksum = proc_buff[ip] + 10 * proc_buff[ip + 1] + 100 * proc_buff[ip + 2];
+                int checksum = proc_buff[ip + 1] + 10 * proc_buff[ip + 2] + 100 * proc_buff[ip + 3];
                 //                  |                     |                        |
                 //                if RAM                if reg                   if num
                 
@@ -795,28 +840,29 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                 {
                     case EMPTY:
                         Translate_Pop (x86_buffer, &x86_ip);
-                        ip += 3;
+                        ip += ISA_Consts[pop].proc_sz;
                         break;
                     
                     case NUM:
                     {
-                        const double num = *(double *)(proc_buff + ip + 3);
+                        const double num = *(double *)(proc_buff + ip + 1 + 3);
 
                         Translate_Push_Num (x86_buffer, &x86_ip, num);
-                        ip += (3 + sizeof (double));
+                        ip += ISA_Consts[push_num].proc_sz;
 
                         break;
                     }
 
                     case RAM_NUM:
                     {
-                        const int num = *(int *)(proc_buff + ip + 3);
+                        const int num = *(int *)(proc_buff + ip + 1 + 3);
                         
-                        if (instr_name == push)
+                        if (instr_name == PUSH)
                             Translate_Push_RAM_Num (x86_buffer, &x86_ip, num);
                         else
                             Translate_Pop_RAM_Num  (x86_buffer, &x86_ip, num);
-                        ip += (3 + sizeof (int));
+
+                        ip += ISA_Consts[push_ram_num].proc_sz;
 
                         break;
                     }
@@ -826,13 +872,14 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                     case CX:
                     case DX:
                     {
-                        const char reg = proc_buff[ip + 1];
+                        const char reg = proc_buff[ip + 2];
 
-                        if (instr_name == push)
+                        if (instr_name == PUSH)
                             Translate_Push_Reg (x86_buffer, &x86_ip, (int)reg);
                         else
                             Translate_Pop_Reg  (x86_buffer, &x86_ip, (int)reg);
-                        ip += 3;
+                        
+                        ip += ISA_Consts[push_reg].proc_sz;
 
                         break;
                     }
@@ -842,13 +889,14 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                     case RAM_CX:
                     case RAM_DX:
                     {
-                        const char reg = proc_buff[ip + 1];
+                        const char reg = proc_buff[ip + 2];
 
-                        if (instr_name == push)
+                        if (instr_name == PUSH)
                             Translate_Push_RAM_Reg (x86_buffer, &x86_ip, (int)reg);
                         else
                             Translate_Pop_RAM_Reg  (x86_buffer, &x86_ip, (int)reg);
-                        ip += 3;
+                        
+                        ip += ISA_Consts[push_ram_reg].proc_sz;
                         
                         break;
                     }
@@ -858,14 +906,15 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                     case RAM_CX_NUM:
                     case RAM_DX_NUM:
                     {
-                        const char reg = proc_buff[ip + 1];
-                        const int num  = *(int *)(proc_buff + ip + 3);
+                        const char reg = proc_buff[ip + 2];
+                        const int num  = *(int *)(proc_buff + ip + 1 + 3);
 
-                        if (instr_name == push)
+                        if (instr_name == PUSH)
                             Translate_Push_RAM_Reg_Num (x86_buffer, &x86_ip, (int)reg, num);
                         else
                             Translate_Pop_RAM_Reg_Num  (x86_buffer, &x86_ip, (int)reg, num);
-                        ip += (3 + sizeof (int));
+
+                        ip += ISA_Consts[push_ram_reg_num].proc_sz;
 
                         break;
                     }
@@ -875,21 +924,21 @@ int Second_Passing (struct Bin_Tr *const bin_tr)
                         break;
                 }
 
-                rsp = (proc_buff[ip] == push) ? rsp - 8 : rsp + 8;
+                rsp += (proc_buff[ip] == PUSH) ? ISA_Consts[push_num].delta_rsp : ISA_Consts[pop].delta_rsp;
 
                 break;
             }           
 
-            case add:
-            case sub:
-            case mul:
-            case dvd:
+            case ADD:
+            case SUB:
+            case MUL:
+            case DVD:
                 Translate_Arithmetics (x86_buffer, &x86_ip, proc_buff[ip]);
                 ip++;
                 rsp += 8;
                 break;
 
-            case Sqrt:
+            case SQRT:
                 Translate_Sqrt (x86_buffer, &x86_ip);
                 ip++;
                 break;
@@ -928,14 +977,9 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
     char *proc_buff = bin_tr->input_buff;
     char *x86_buff  = bin_tr->x86_buff;
     
-    Sort_Jumps (jumps_arr, n_jumps);    // sorts by "to" field
-    
-    int jump_i = 0;
-    int ip = 0, x86_ip = 0;
+    Sort_Jumps (jumps_arr, n_jumps);    // sorts by field "to"
 
-    int rsp = 0;
-
-    while (ip < max_ip)
+    for (int ip = 0, x86_ip = 0, rsp = 0, jump_i = 0; ip < max_ip; )
     {
         while (jump_i < n_jumps && ip == jumps_arr[jump_i].to)
         {
@@ -943,17 +987,20 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
 
             switch (jumps_arr[jump_i].type)
             {
-                case call:
-                case jmp:
+                case CALL:
+                case JMP:
                     *(int *)(x86_buff + x86_from + 1) = x86_ip - (x86_from + 1 + sizeof (int));
+
                     break;
-                case jae:
-                case ja:
-                case jbe:
-                case jb:
-                case je:
-                case jne:
+
+                case JAE:
+                case JA:
+                case JBE:
+                case JB:
+                case JE:
+                case JNE:
                     *(int *)(x86_buff + x86_from + 2) = x86_ip - (x86_from + 2 + sizeof (int));
+
                     break;
 
                 default:
@@ -966,113 +1013,135 @@ static int Third_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps_
         
         switch (proc_buff[ip])
         {
-            case hlt:
-                x86_ip += 10;   // look in Commands.md
-                ip++;
+            case HLT:
+                ip     += ISA_Consts[hlt].proc_sz;
+                x86_ip += ISA_Consts[hlt].x86_sz;
+                rsp    += ISA_Consts[hlt].delta_rsp;
                 break;
 
-            case call:
-            case jmp:
-            case jae:
-            case ja:
-            case jbe:
-            case jb:
-            case jne:
-            case je:
+            case CALL:
+            case JMP:
+            case JAE:
+            case JA:
+            case JBE:
+            case JB:
+            case JNE:
+            case JE:
             {
-                if (proc_buff[ip] == call || proc_buff[ip] == jmp)
-                    x86_ip += 5;    // look in Commands.md
+                if (proc_buff[ip] == CALL || proc_buff[ip] == JMP)
+                {
+                    ip     += ISA_Consts[call].proc_sz;
+                    x86_ip += ISA_Consts[call].x86_sz;
+                    rsp    += ISA_Consts[call].delta_rsp;
+                }
                 else
-                    x86_ip += 11;   // look in Commands.md
-                ip += 1 + sizeof (int);
+                {
+                    ip     += ISA_Consts[jae].proc_sz;
+                    x86_ip += ISA_Consts[jae].x86_sz;
+                    rsp    += ISA_Consts[jae].delta_rsp;  
+                }
 
                 break;
             }
 
-            case ret:
-                x86_ip++;   // look in Commands.md
-                ip++;
+            case RET:
+                ip     += ISA_Consts[ret].proc_sz;
+                x86_ip += ISA_Consts[ret].x86_sz;
+                rsp    += ISA_Consts[ret].delta_rsp;
                 break;
 
-            case in:
-                ip++;
-                x86_ip = (rsp % 16 == 0) ? x86_ip + 19 : x86_ip + 21;   // look in Commands.md
-                rsp -= 8;
+            case IN:
+                if (rsp % 16 == 0)
+                {
+                    ip     += ISA_Consts[in_aligned].proc_sz;
+                    x86_ip += ISA_Consts[in_aligned].x86_sz;
+                    rsp    += ISA_Consts[in_aligned].delta_rsp;
+                }
+                else
+                {
+                    ip     += ISA_Consts[in_unaligned].proc_sz;
+                    x86_ip += ISA_Consts[in_unaligned].x86_sz;
+                    rsp    += ISA_Consts[in_unaligned].delta_rsp;
+                }
+
                 break;
 
-            case out:
-                ip++;
-                x86_ip += 19;   // look in Commands.md
-                rsp += 8;
+            case OUT:
+                ip     += ISA_Consts[out].proc_sz;
+                x86_ip += ISA_Consts[out].x86_sz;
+                rsp    += ISA_Consts[out].delta_rsp;
                 break;
 
-            case push:
-            case pop:
+            case PUSH:
+            case POP:
             {
-                ip++;
-                int checksum = proc_buff[ip] + 10 * proc_buff[ip + 1] + 100 * proc_buff[ip + 2];
+                int checksum = proc_buff[ip + 1] + 10 * proc_buff[ip + 2] + 100 * proc_buff[ip + 3];
                 //                  |                     |                        |
                 //                if RAM                if reg                   if num
 
                 switch (checksum)
                 {                    
                     case EMPTY:
-                        ip += 3;
-                        x86_ip++;       // look in Commands.md
+                        ip     += ISA_Consts[pop].proc_sz;
+                        x86_ip += ISA_Consts[pop].x86_sz;
                         break;
                     
                     case NUM:
-                        ip += 3 + sizeof (double);
-                        x86_ip += 11;   // look in Commands.md
+                        ip     += ISA_Consts[push_num].proc_sz;
+                        x86_ip += ISA_Consts[push_num].x86_sz;
                         break;
 
                     case RAM_NUM:
-                        ip += 3 + sizeof (int);
-                        x86_ip += 9;    // look in Commands.md
+                        ip     += ISA_Consts[push_ram_num].proc_sz;
+                        x86_ip += ISA_Consts[push_ram_num].x86_sz;
                         break;
 
                     case AX:
                     case BX:
                     case CX:
                     case DX:
-                        ip += 3;
-                        x86_ip++;       // look in Commands.md
+                        ip     += ISA_Consts[push_reg].proc_sz;
+                        x86_ip += ISA_Consts[push_reg].x86_sz;
                         break;
 
                     case RAM_AX:
                     case RAM_BX:
                     case RAM_CX:
                     case RAM_DX:
-                        ip += 3;
-                        x86_ip += 4;    // look in Commands.md
+                        ip     += ISA_Consts[push_ram_reg].proc_sz;
+                        x86_ip += ISA_Consts[push_ram_reg].x86_sz;
                         break;
 
                     case RAM_AX_NUM:
                     case RAM_BX_NUM:
                     case RAM_CX_NUM:
                     case RAM_DX_NUM:
-                        x86_ip += 8;    // look in Commands.md
-                        ip += 3 + sizeof (int);
+                        ip     += ISA_Consts[push_ram_reg_num].proc_sz;
+                        x86_ip += ISA_Consts[push_ram_reg_num].x86_sz;
                         break;
 
                     default:
                         MY_ASSERT (false, "int checksum", UNEXP_VAL, ERROR);
                         break;
                 }
+
+                rsp += (proc_buff[ip] == PUSH) ? ISA_Consts[push_num].delta_rsp : ISA_Consts[pop].delta_rsp;
                 break;
             }
 
-            case add:
-            case sub:
-            case mul:
-            case dvd:
-                x86_ip += 24;   // look in Commands.md
-                ip++;
+            case ADD:
+            case SUB:
+            case MUL:
+            case DVD:
+                ip     += ISA_Consts[add].proc_sz;
+                x86_ip += ISA_Consts[add].x86_sz;
+                rsp    += ISA_Consts[add].delta_rsp;
                 break;
 
-            case Sqrt:
-                x86_ip += 14;   // look in Commands.md
-                ip++;
+            case SQRT:
+                ip     += ISA_Consts[Sqrt].proc_sz;
+                x86_ip += ISA_Consts[Sqrt].x86_sz;
+                rsp    += ISA_Consts[Sqrt].delta_rsp;
                 break;
 
             default: MY_ASSERT (false, "proc_buff[ip]", UNDEF_CMD, ERROR);
@@ -1109,7 +1178,7 @@ static int Translate (struct Bin_Tr *const bin_tr)
     MY_ASSERT (SP_status != ERROR, "Second_Passing ()", FUNC_ERROR, ERROR);
 
     if (n_jumps > 0)
-    {
+    {       
         #ifdef DEBUG
         int TP_status = Third_Passing (bin_tr, jumps_arr, n_jumps);
         #else
@@ -1144,6 +1213,10 @@ static int Extract_Code (struct Bin_Tr *const bin_tr, const char *const input_na
     return NO_ERRORS;
 }
 
+#ifdef STRESS_TEST
+const long long n_tests = 100000000;
+#endif
+
 static int JIT (struct Bin_Tr *bin_tr)
 {
     #ifdef DEBUG
@@ -1155,7 +1228,13 @@ static int JIT (struct Bin_Tr *bin_tr)
     MY_ASSERT (mprotect_res == 0, "mprotect ()", FUNC_ERROR, ERROR);
 
     void (* executor)(void) = (void (*)(void))(bin_tr->x86_buff);
-    executor();
+
+    #ifdef STRESS_TEST
+    for (long long i = 0; i < n_tests; i++)
+        executor ();
+    #else
+    executor ();
+    #endif
 
     return NO_ERRORS;
 }
@@ -1184,9 +1263,9 @@ int Binary_Translator (const char *const input_name)
     MY_ASSERT (Tr_status != ERROR, "Translate ()", FUNC_ERROR, ERROR);
 
     #if 0
-    FILE *output = Open_File (output_name, "wb");
+    FILE *output = Open_File ("debug.bin", "wb");
     fwrite (bin_tr.x86_buff, sizeof (char), bin_tr.x86_max_ip, output);
-    Close_File (output, output_name);
+    Close_File (output, "debug.bin");
     #endif
 
     JIT (&bin_tr);
