@@ -2,7 +2,7 @@
 
 ## hlt
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   1 byte
 
         0x00
     
@@ -20,9 +20,9 @@
 
 ## call: 
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   5 bytes
 
-        0x01 "ip_to_call"
+        0x01 (ip_to_call: 4 bytes)
 
     NASM:
 
@@ -38,9 +38,9 @@
 
 ## jmp: 
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   5 bytes
 
-        0x02 "ip_to_jump"
+        0x02 (ip_to_jump: 4 bytes)
 
     NASM:
 
@@ -57,14 +57,14 @@
 
 ## Conditional jumps:
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   5 bytes
 
-        0x03 "ip_to_jump"       // jae
-        0x04     ...            // ja
-        0x05     ...            // jbe
-        0x06     ...            // jb
-        0x07     ...            // je
-        0x08     ...            // jne
+        0x03 (ip_to_jump: 4 bytes)  // jae
+        0x04          ...           // ja
+        0x05          ...           // jbe
+        0x06          ...           // jb
+        0x07          ...           // je
+        0x08          ...           // jne
 
     NASM:
 
@@ -92,7 +92,7 @@
 
 ## ret: 
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   1 byte
 
         0x09
 
@@ -106,7 +106,7 @@
 
 ## in:
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   1 byte
 
         0x0A
     
@@ -190,7 +190,7 @@
 
 ## out:
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   1 byte
 
         0x0B
 
@@ -239,9 +239,9 @@
 
 ### push "number"
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   12 bytes
 
-        0x0C 0x00 0x00 0x01 "number"
+        0x0C 0x00 0x00 0x01 (number: 8 bytes)
 
     NASM:
 
@@ -255,7 +255,7 @@
 
 ### push ["number"]
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   8 bytes
     
     0x0C 0x01 0x00 0x01 (number: 4 bytes)
 
@@ -271,7 +271,7 @@
 
 ### push "register"
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   4 bytes
 
         0x0C 0x00 0x01 0x00     // push ax
         ...  ...  0x02 ...      // push bx
@@ -291,7 +291,7 @@
 
 ### push ["register"]
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   4 bytes
 
         0x0C 0x01 0x01 0x00     // push [ax]
         ...  ...  0x02 ...      // push [bx]
@@ -313,7 +313,7 @@
 
 ### push ["register" + "number"]
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   8 bytes
     
         0x0C 0x01 0x01 0x01 (number: 4 bytes)    // push [ax + "number"]
         ...  ...  0x02 ...         ...           // push [bx + "number"]
@@ -342,7 +342,7 @@
 
 ### pop
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   4 bytes
 
         0x0D 0x00 0x00 0x00
 
@@ -356,7 +356,7 @@
 
 ### pop ["number"]
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   8 bytes
     
         0x0D 0x01 0x00 0x01 (number: 4 bytes)
 
@@ -372,7 +372,7 @@
 
 ### pop "register"
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   4 bytes
 
         0x0D 0x00 0x01 0x00     // pop ax
         ...  ...  0x02 ...      // pop bx
@@ -392,7 +392,7 @@
 
 ### pop ["register"]
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   4 bytes
 
         0x0D 0x01 0x01 0x00     // pop [ax]
         ...  ...  0x02 ...      // pop [bx]
@@ -415,7 +415,7 @@
 
 ### pop ["register" + "number"]
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   8 bytes
     
         0x0D 0x01 0x01 0x01 (number: 4 bytes)    // pop [ax + "number"]
         ...  ...  0x02 ...         ...           // pop [bx + "number"]
@@ -438,12 +438,12 @@
 
 ## Math functions
 
-    MY ASSEMBLER:
+    MY ASSEMBLER:   1 byte
     
-        0x0E                            // add
-        0x0F                            // sub
-        0x10                            // mul
-        0x11                            // div
+        0x0E    // add
+        0x0F    // sub
+        0x10    // mul
+        0x11    // div
 
     NASM:
 
@@ -451,10 +451,10 @@
         movsd   xmm2, qword [rsp]
         add     rsp, 8
 
-        addsd   xmm1, xmm2              // add
-        subsd      ...                  // sub
-        mulsd      ...                  // mul
-        divsd      ...                  // div
+        addsd   xmm1, xmm2      // add
+        subsd      ...          // sub
+        mulsd      ...          // mul
+        divsd      ...          // div
 
         movsd   qword [rsp], xmm1
 
@@ -464,17 +464,17 @@
         0xF2 0x0F 0x10 0x14 0x24
         0x48 0x83 0xC4 0x08
 
-        0xF2 0x0F 0x58 0xCA             // add
-        ...  ...  0xCA ...              // sub
-        ...  ...  0x59 ...              // mul
-        ...  ...  0x5E ...              // div
+        0xF2 0x0F 0x58 0xCA     // add
+        ...  ...  0xCA ...      // sub
+        ...  ...  0x59 ...      // mul
+        ...  ...  0x5E ...      // div
 
         0xF2 0x0F 0x11 0x0C 0x24
 
 
 ## Sqrt
 
-    MY_ASEMBLER:
+    MY_ASEMBLER:    1 byte
 
         0x12
 
