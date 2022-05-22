@@ -16,5 +16,4 @@
 
 test/
 
-Print_Double.c
-Try.*
+./src/ELF_Generator.c
