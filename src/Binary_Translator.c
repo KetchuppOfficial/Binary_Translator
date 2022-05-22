@@ -16,7 +16,7 @@ struct Instruction
 static const struct Instruction ISA_Consts[N_INSTRUCTIONS] =
 {
     {hlt,               HLT,  1, 10,  0},
-    {call,             CALL,  5,  5,  0},
+    {call,             CALL,  5,  5, -8},
     {jmp,               JMP,  5,  5,  0},
     {jae,               JAE,  5, 11, 16},
     {ja,                 JA,  5, 11, 16},
@@ -24,7 +24,7 @@ static const struct Instruction ISA_Consts[N_INSTRUCTIONS] =
     {jb,                 JB,  5, 11, 16},
     {je,                 JE,  5, 11, 16},
     {jne,               JNE,  5, 11, 16},
-    {ret,               RET,  1,  1,  0},
+    {ret,               RET,  1,  1,  8},
     {in_aligned,         IN,  1, 19, -8},
     {in_unaligned,       IN,  1, 21, -8},
     {out,               OUT,  1, 19,  8},
