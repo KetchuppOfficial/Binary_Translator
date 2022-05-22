@@ -79,10 +79,10 @@
         0x5F
         0x48 0x39 0xF7
 
-        0x0F 0x83 (shift: 4 bytes)     // jae
-        ...  0x87       ...            // ja
-        ...  0x86       ...            // jbe
-        ...  0x82       ...            // jb
+        0x0F 0x8D (shift: 4 bytes)     // jge
+        ...  0x8F       ...            // jg
+        ...  0x8E       ...            // jle
+        ...  0x8C       ...            // jl
         ...  0x84       ...            // je
         ...  0x85       ...            // jne
 
@@ -110,83 +110,43 @@
 
         0x0A
     
-    ALIGNED VERSION:
-    
-        NASM:
+    NASM:
 
-            push    rdi
-            
-            push    rax
-            push    rbx
-            push    rcx
-            push    rdx
-            
-            lea     rdi, [rsp + 32] 
-            call    In
+        push    rdi
+        
+        push    rax
+        push    rbx
+        push    rcx
+        push    rdx
+        
+        lea     rdi, [rsp + 32] 
+        call    In
 
-            pop     rdx
-            pop     rcx
-            pop     rbx
-            pop     rax
+        pop     rdx
+        pop     rcx
+        pop     rbx
+        pop     rax
 
-        x86-64 OPCODE:      19 bytes
+    x86-64 OPCODE:      19 bytes
 
-            0x57
+        0x57
 
-            0x50
-            0x53
-            0x51
-            0x52
+        0x50
+        0x53
+        0x51
+        0x52
 
-            0x48 0x8D 0x7C 0x24 0x20
-            0xE8 (In relative address: 4 bytes)
+        0x48 0x8D 0x7C 0x24 0x20
+        0xE8 (In relative address: 4 bytes)
 
-            0x5A
-            0x59
-            0x5B
-            0x58
+        0x5A
+        0x59
+        0x5B
+        0x58
 
-    UNALIGNED VERSION:
-
-        NASM:
-
-            push    rdi
-            push    rdi
-            
-            push    rax
-            push    rbx
-            push    rcx
-            push    rdx
-            
-            lea     rdi, [rsp + 40]
-            call    In
-
-            pop     rdx
-            pop     rcx
-            pop     rbx
-            pop     rax
-
-            pop     rdi
-
-        x86-64 OPCODE:      21 byte
-
-            0x57
-            0x57
-
-            0x50
-            0x53
-            0x51
-            0x52
-
-            0x48 0x8D 0x7C 0x24 0x28
-            0xE8 (In relative address: 4 bytes)
-
-            0x5A
-            0x59
-            0x5B
-            0x58
-
-            0x5F
+    !!! WARNING !!!
+        
+        Stack must be aligned on 16 bytes before calling in "in"
 
 ## out:
 
@@ -215,7 +175,6 @@
     x86-64 OPCODE:      19 bytes
 
         0xF2 0x0F 0x10 0x04 0x24
-        0x48 0x83 0xC4 0x08
 
         0x50
         0x53
@@ -230,6 +189,10 @@
         0x58
 
         0x5F
+
+    !!! WARNING !!!
+        
+        Stack must be aligned on 8 bytes before calling in "out"
 
 ## push:
 
