@@ -34,7 +34,6 @@
 
     push dx
     push 0
-
     je equal_roots
 
     push dx
@@ -44,22 +43,28 @@
     push -1
     push bx
     mul
+
     push dx
     sub
+
     push 2
     push ax
     mul
+
     dvd
     out
 
     push -1
     push bx
     mul
+
     push dx
     add
+
     push 2
     push ax
     mul
+
     dvd
     out
     ret
@@ -69,10 +74,13 @@ equal_roots:
     push -1
     push bx
     mul
+
     push 2
     push ax
     mul
+
     dvd
+    
     out
     ret
 
@@ -98,12 +106,12 @@ only_c:
 
 no_roots:
 
-    push 1.2345
+    push 666
     out
     ret
 
 inf_roots:
 
-    push 666
+    push 100500
     out
     ret
