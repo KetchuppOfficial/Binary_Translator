@@ -51,15 +51,16 @@ The goal was to compare execution time and find out, how faster **binary transla
 
 **My Processor (-O0)**
 
-| real | 1m11,658s |
-| user | 1m11,192s |
-| sys  | 0m0,436s  |
+
+|    real   |    user   |    sys    |
+|-----------|-----------|-----------|
+| 1m11,658s | 1m11,192s | 0m0,436s  |
 
 **Binary Translator (-O0)**
 
-| real | 0m3,274s |
-| user | 0m3,268s |
-| sys  | 0m0,004s |
+|   real   |    user   |    sys    |
+|----------|-----------|-----------|
+| 0m3,274s | 0m3,268s  | 0m0,004s  |
 
 We see that **binary translator** is approximately 22 times faster than **processor**.
 
