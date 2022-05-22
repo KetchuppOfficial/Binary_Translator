@@ -16,4 +16,4 @@
 
 test/
 
-./src/ELF_Generator.c
+src/ELF_Generator.c
