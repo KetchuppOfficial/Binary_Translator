@@ -3,7 +3,8 @@ CFLAGS = -Wall -Werror -Wshadow -Wfloat-equal -Wswitch-default
 
 DEBUG = -g
 
-MY_LIB  = ~/Programming/My_Lib/My_Lib.a
+MY_LIB_PATH  = /home/ketchupp/Programming/My_Lib/
+MY_LIB       = $(MY_LIB_PATH)My_Lib.a
 
 BIN      = ./bin/
 SRCDIR   = ./src/
@@ -27,14 +28,14 @@ all: $(DEPS) $(OBJ)
 $(BUILDDIR)%.o: $(SRCDIR)%.c
 	@mkdir -p $(dir $@)
 	@echo "Compiling \"$<\"..."
-	@$(CC) $(CFLAGS) $(DEBUG) $(OPT) -c $< -o $@
+	@$(CC) $(CFLAGS) $(DEBUG) $(OPT) -c -I$(MY_LIB_PATH) $< -o $@
 
 include $(DEPS)
 
 $(BUILDDIR)%.d: $(SRCDIR)%.c
 	@echo "Collecting dependencies for \"$<\"..."
 	@mkdir -p $(dir $@)
-	@$(CC) -E $(CFLAGS) $< -MM -MT $(@:.d=.o) > $@
+	@$(CC) -E $(CFLAGS) -I$(MY_LIB_PATH) $< -MM -MT $(@:.d=.o) > $@
 
 .PHONY: run clean
 
