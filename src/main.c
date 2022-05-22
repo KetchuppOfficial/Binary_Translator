@@ -1,8 +1,8 @@
 #include "../include/Binary_Translator.h"
 
-int Check_Argc (int argc)
+int Check_Argc (const int argc, const int expected)
 {
-    return (argc < 2) ? 1 : 0;
+    return (argc == expected) ? 0 : 1;
 }
 
 int main (int argc, char *argv[])
@@ -11,10 +11,10 @@ int main (int argc, char *argv[])
     OPEN_LOG_FILE;
     #endif
     
-    MY_ASSERT (Check_Argc (argc) == 0, "int argc", NOT_ENOUGH_ARGS, ERROR);
+    MY_ASSERT (Check_Argc (argc, 2) == 0, "int argc", NOT_ENOUGH_ARGS, ERROR);
 
     #ifdef DEBUG
-    int ret_val = Binary_Translator (argv[1], argv[2]);
+    int ret_val = Binary_Translator (argv[1]);
     #else
     Binary_Translator (argv[1]);
     #endif
