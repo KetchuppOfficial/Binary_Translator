@@ -8,15 +8,11 @@
     
     NASM 64-bit:
 
-        mov     rax, 0x3C
-        xor     rdi, rdi
-        syscall
+        ret
 
-    x86-64 OPCODE:  10 bytes
+    x86-64 OPCODE:  1 byte
 
-        0xB8 0x3C 0x00 0x00 0x00
-        0x48 0x31 0xFF
-        0x0F 0x05
+        0xC3
 
 ## call: 
 
