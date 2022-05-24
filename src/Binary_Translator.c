@@ -14,7 +14,7 @@ struct Instruction
 
 static const struct Instruction ISA_Consts[N_INSTRUCTIONS] =
 {
-    {hlt,               HLT,  1, 10},
+    {hlt,               HLT,  1,  1},
     {call,             CALL,  5,  5},
     {jmp,               JMP,  5,  5},
     {jae,               JAE,  5, 11},
@@ -250,17 +250,6 @@ static inline void Put_In_x86_Buffer (char *const x86_buffer, int *const x86_ip,
 {
     memcpy (x86_buffer + *x86_ip, opcode, opcode_size);
     *x86_ip += opcode_size;
-}
-
-static inline void Translate_Hlt (char *const x86_buffer, int *const x86_ip)
-{
-    char opcode[] = {
-                        0xB8, 0x3C, 0x00, 0x00, 0x00,   // mov rax, 0x3C
-                        0x48, 0x31, 0xFF,               // xor rdi, rdi
-                        0x0F, 0x05                      // syscall
-                    };
-
-    Put_In_x86_Buffer (x86_buffer, x86_ip, opcode, sizeof opcode);
 }
 
 static inline void Translate_Ret (char *const x86_buffer, int *const x86_ip)
@@ -649,7 +638,7 @@ static int Translate_Arithmetics (char *const x86_buffer, int *const x86_ip, con
 
     Put_In_x86_Buffer (x86_buffer, x86_ip, first_part, sizeof first_part);
     
-    char math_instruction[] = {0xF2, 0x0F, 0x00, 0xCA};
+    char math_instruction[] = {0xF2, 0x0F, 0x00, 0xCA}; // "instruction" xmm1, xmm2
     //                                       |
     //           this byte will be changed --+
 
@@ -889,7 +878,7 @@ static int Second_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps
         switch (proc_buff[ip])
         {
             case HLT:
-                Translate_Hlt (x86_buffer, &x86_ip);
+                Translate_Ret (x86_buffer, &x86_ip);
 
                 ip  += ISA_Consts[hlt].proc_sz;
                 break;
