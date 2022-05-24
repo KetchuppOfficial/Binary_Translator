@@ -3,7 +3,7 @@ CFLAGS = -Wall -Werror -Wshadow -Wfloat-equal -Wswitch-default
 
 DEBUG = -g
 
-MY_LIB_PATH  = /home/ketchupp/Programming/My_Lib/
+MY_LIB_PATH  = ../My_Lib/
 MY_LIB       = $(MY_LIB_PATH)My_Lib.a
 
 BIN      = ./bin/
