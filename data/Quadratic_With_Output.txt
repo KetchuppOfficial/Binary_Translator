@@ -67,7 +67,7 @@
 
     dvd
     out
-    ret
+    hlt
 
 equal_roots:
 
@@ -82,7 +82,7 @@ equal_roots:
     dvd
     
     out
-    ret
+    hlt
 
 linear:
 
@@ -96,7 +96,7 @@ linear:
     push bx
     dvd
     out
-    ret
+    hlt
 
 only_c:
 
@@ -108,10 +108,10 @@ no_roots:
 
     push 666
     out
-    ret
+    hlt
 
 inf_roots:
 
     push 100500
     out
-    ret
+    hlt
