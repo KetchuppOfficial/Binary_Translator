@@ -55,104 +55,27 @@ make OPT=-DDEBUG\ -DSTRESS_TEST\ -O2    # don't forget backslash!
 
 **Step 4:** Running
 ```bash
-make run IN=<input_file_name>
+make run IN=input_file_name
 ```
-The program won't work if you don't specify <input_file_name>.
+The program won't work if you don't specify **input_file_name**.
+
+## The aim of the project
+
+My virtual processor shows low performance in many cases. Programs on my assembler language are executed indirectly: not on hardware CPU itself but via the C program. Let's try to boost programs written on my assembler by translating them into x86-64 machine code. So the main criterion of binary translation quality is the execution boost.
 
 ## Performance comparison
 
-The performance of binary translator and processor emulator was tested on two programs implemented on my assembler language. Both programs have two versions: the first one - for the translator, the second one - for the emulator. The difference between them is that the emulator version uses **hlt** instructions to return from the program, while translator version uses **ret** for the same purpose.
+The goal is to compare execution time and find out, how faster the binary translator is comparing to the processor emulator. I carried out the measurements by tool **time**. The measurement error caused by translation bytecode into machine code (~0.002) is negligible comparing to the whole execution time.
 
-The goal is to compare execution time and find out, how faster the binary translator is comparing to the processor emulator. I carried out the measurements by tool **time**. The execution time of the entire program was measured in both cases. The measurement error caused by translating bytecode into machine code by the translator is negligible comparing to the whole execution time. You can find proofs below.
+The performance of binary translator and processor emulator was tested on two programs. The first one solves the good old quadratic equation 124.1 * x^2 - 2345.8 * x + 294.4 = 0. You can find source code [here](/data/Quadratic_For_Tests.txt). The second one calculates factorial of 10. You can find source code [here](/data/Factorial_For_Tests.txt).
 
-### Quadratic equation
+### Results
 
-This test is to solve the good old quadratic equation. I've written a program that solves equation 124.1 * x^2 - 2345.8 * x + 294.4 = 0. You can find source code [here](/data/Quadratic_For_Tests.txt).
-
-**My Processor**
-
-| real, s | user, s |
-|---------|---------|
-| 75.225  | 75.119  |
-| 74.361  | 74.281  |
-| 74.174  | 74.104  |
-| 75.047  | 74.954  |
-| 74.494  | 74.410  |
-
-|         | real, s | user, s |
-|---------|---------|---------|
-| average |  74.7   |  74.6   |
-| std dev |   0.4   |   0.3   |
-
-**Binary Translator**
-
-One calculation:
-
-| real, s | user, s |
-|---------|---------|
-|  0.002  |  0.002  |
-
-10 000 000 calculations:
-
-| real, s | user, s |
-|---------|---------|
-|  3.284  |  3.277  |
-|  3.276  |  3.268  |
-|  3.269  |  3.267  |
-|  3.276  |  3.269  |
-|  3.274  |  3.267  |
-
-|         | real, s | user, s |
-|---------|---------|---------|
-| average |  3.276  |  3,270  |
-| std dev |  0.003  |  0.002  |
-
-We see that the binary translator is **22,8 +- 0.1** times faster than the processor emulator in terms of solving quadratic equations.
-
-### Factorial
-
-This test is to calculate factorial of some number.
-I've written a program that calculates 10!. You can find source code [here](/data/Factorial_For_Tests.txt).
-
-**My Processor:**
-
-| real, s | user, s |
-|---------|---------|
-| 119.849 | 119.799 |
-| 120.496 | 120.414 |
-| 121.613 | 121.484 |
-| 121.032 | 120.926 |
-| 120.856 | 120.774 |
-
-|         | real, s | user, s |
-|---------|---------|---------|
-| average |  120.8  |  120.7  |
-| std dev |    0.5  |    0.5  |
-
-**Binary Translator:**
-
-One calculation:
-
-| real, s | user, s |
-|---------|---------|
-|  0.002  |  0.002  |
-
-10 000 000 calculations:
-
-| real, s | user, s |
-|---------|---------|
-|  5.716  |  5.707  |
-|  5.719  |  5.703  |
-|  5.696  |  5.689  |
-|  5.689  |  5.685  |
-|  5.728  |  5.717  |
-
-|         | real, s | user, s |
-|---------|---------|---------|
-| average |  5.71   |  5.70   |
-| std dev |  0.01   |  0.01   |
-
-Finally, binary translator is **21,2 +- 0,1** times faster than my processor emulator in calculating factorial.
+|                                | Quadratic equation |  Factorial   |
+|--------------------------------|--------------------|--------------|
+| Emulator execution time, s     | 74.7 +- 0.4 s      | 120.8 +- 0.5 |
+| Hardware CPU execution time, s | 3.276 +- 0.003 s   | 5.71 +- 0.01 |
+| Performance boost, times       | 22.8 +- 0.1        | 21.2 +- 0.1  |
 
 ## Future
 
