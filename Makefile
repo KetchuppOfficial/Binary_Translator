@@ -11,7 +11,7 @@ SRCDIR   = ./src/
 BUILDDIR = ./build/
 
 SRC_LIST = main.c Binary_Translator.c
-SRC = $(addprefix $(SRCDIR),$(SRC_LIST))
+SRC = $(addprefix $(SRCDIR), $(SRC_LIST))
 
 SUBS := $(SRC)
 SUBS := $(subst $(SRCDIR), $(BUILDDIR), $(SUBS))
@@ -23,7 +23,7 @@ DEPS = $(SUBS:.c=.d)
 all: $(DEPS) $(OBJ)
 	@mkdir -p $(BIN)
 	@echo "Linking project..."
-	@$(CC) $(OBJ) $(SHA_LIB) $(MY_LIB) -o $(BIN)Binary_Translator.out
+	@$(CC) $(OBJ) $(MY_LIB) -o $(BIN)Binary_Translator.out
 
 $(BUILDDIR)%.o: $(SRCDIR)%.c
 	@mkdir -p $(dir $@)
