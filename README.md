@@ -73,8 +73,8 @@ The performance of binary translator and processor emulator was tested on two pr
 
 |                                | Quadratic equation |  Factorial   |
 |--------------------------------|--------------------|--------------|
-| Emulator execution time, s     | 74.7 +- 0.4 s      | 120.8 +- 0.5 |
-| Hardware CPU execution time, s | 3.276 +- 0.003 s   | 5.71 +- 0.01 |
+| Emulator execution time, s     | 74.7 +- 0.4        | 120.8 +- 0.5 |
+| Hardware CPU execution time, s | 3.276 +- 0.003     | 5.71 +- 0.01 |
 | Performance boost, times       | 22.8 +- 0.1        | 21.2 +- 0.1  |
 
 ## Future
