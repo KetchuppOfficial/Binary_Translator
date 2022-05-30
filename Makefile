@@ -19,6 +19,7 @@ LIBSDIR = $(addprefix ./lib/, $(LIBS_LIST))
 LIBS = $(addsuffix /*.a, $(LIBSDIR))
 
 .PHONY: all $(LIBSDIR)
+
 all: $(DEPS) $(OBJ) $(LIBSDIR)
 	@mkdir -p $(BIN)
 	@echo "Linking project..."
