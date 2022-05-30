@@ -47,8 +47,8 @@ struct Bin_Tr
 {
     char *input_buff;
     char *x86_buff;
-    int   max_ip;
-    int   x86_max_ip;
+    long  max_ip;
+    long  x86_max_ip;
 };
 
 static int Handle_Push_Pop_First (const char *const proc_buff, int *const ip, int *const x86_ip)
@@ -227,7 +227,7 @@ static struct Jump *First_Passing (struct Bin_Tr *bin_tr, int *const n_jumps)
                 break;
 
             default: 
-                MY_ASSERT (false, "proc_buff[ip]", UNDEF_CMD, NULL);
+                MY_ASSERT (false, "proc_buff[ip]", UNEXP_VAL, NULL);
                 break;
         }
     }
@@ -948,7 +948,7 @@ static int Second_Passing (struct Bin_Tr *const bin_tr, struct Jump *const jumps
                 ip  += ISA_Consts[Sqrt].proc_sz;
                 break;
 
-            default: MY_ASSERT (false, "proc_buff[ip]", UNDEF_CMD, ERROR);
+            default: MY_ASSERT (false, "proc_buff[ip]", UNEXP_VAL, ERROR);
         }
     }
 
@@ -964,15 +964,6 @@ static int Translate (struct Bin_Tr *const bin_tr)
     struct Jump *jumps_arr = First_Passing (bin_tr, &n_jumps);
     MY_ASSERT ((n_jumps == 0 && jumps_arr == NULL) || (n_jumps > 0 && jumps_arr != NULL), "First_Passing ()", FUNC_ERROR, ERROR);
 
-    #if 0
-    for (int i = 0; i < n_jumps; i++)
-        printf ("TYPE: %X\n"
-                "from: %d\n"
-                "to: %d\n"
-                "x86_from: %d\n\n", 
-                jumps_arr[i].type, jumps_arr[i].from, jumps_arr[i].to, jumps_arr[i].x86_from);      
-    #endif
-
     #ifdef DEBUG
     int SP_status = Second_Passing (bin_tr, jumps_arr, n_jumps);
     #else
@@ -983,26 +974,6 @@ static int Translate (struct Bin_Tr *const bin_tr)
 
     if (n_jumps > 0)
         free (jumps_arr);
-
-    return NO_ERRORS;
-}
-
-static int Extract_Code (struct Bin_Tr *const bin_tr, const char *const input_name)
-{
-    MY_ASSERT (bin_tr,     "struct Bin_Tr *const bin_tr",  NULL_PTR, ERROR);
-    MY_ASSERT (input_name, "const char *const input_name", NULL_PTR, ERROR);
-    
-    FILE *file_ptr = Open_File (input_name, "rb");
-    MY_ASSERT (file_ptr, "Open_File ()", FUNC_ERROR, ERROR);
-
-    long n_symbs = Define_File_Size (file_ptr);
-    MY_ASSERT (n_symbs > 0, "Define_File_Size ()", FUNC_ERROR, ERROR);
-    bin_tr->max_ip = n_symbs;
-
-    bin_tr->input_buff = Make_Buffer (file_ptr, n_symbs);
-    MY_ASSERT (bin_tr->input_buff, "Make_Buffer ()", FUNC_ERROR, ERROR);
-
-    Close_File (file_ptr, input_name);
 
     return NO_ERRORS;
 }
@@ -1039,13 +1010,8 @@ int Binary_Translator (const char *const input_name)
 
     struct Bin_Tr bin_tr = {};
     
-    #ifdef DEBUG
-    int EC_status = Extract_Code (&bin_tr, input_name);
-    #else
-    Extract_Code (&bin_tr, input_name);
-    #endif
-
-    MY_ASSERT (EC_status != ERROR, "Extract_Code ()", FUNC_ERROR, ERROR);
+    bin_tr.input_buff = Make_File_Buffer (input_name, &bin_tr.max_ip);
+    MY_ASSERT (bin_tr.input_buff, "Make_File_Buffer ()", FUNC_ERROR, ERROR);
 
     #ifdef DEBUG
     int Tr_status = Translate (&bin_tr);
@@ -1056,7 +1022,7 @@ int Binary_Translator (const char *const input_name)
     free (bin_tr.input_buff);
     MY_ASSERT (Tr_status != ERROR, "Translate ()", FUNC_ERROR, ERROR);
 
-    #if 1
+    #if 0
     FILE *output = Open_File ("debug.bin", "wb");
     fwrite (bin_tr.x86_buff, sizeof (char), bin_tr.x86_max_ip, output);
     Close_File (output, "debug.bin");

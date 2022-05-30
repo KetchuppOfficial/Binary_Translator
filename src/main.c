@@ -8,10 +8,10 @@ int Check_Argc (const int argc, const int expected)
 int main (int argc, char *argv[])
 {
     #ifdef DEBUG
-    OPEN_LOG_FILE;
+    Open_Log_File ("Binary_Translator");
     #endif
     
-    MY_ASSERT (Check_Argc (argc, 2) == 0, "int argc", NOT_ENOUGH_ARGS, ERROR);
+    MY_ASSERT (Check_Argc (argc, 2) == 0, "int argc", NE_MAIN_ARGS, ERROR);
 
     #ifdef DEBUG
     int ret_val = Binary_Translator (argv[1]);
