@@ -1,6 +1,8 @@
 CC     = gcc
 CFLAGS = -Wall -Werror -Wshadow -Wfloat-equal -Wswitch-default
 
+PROJECT_NAME = Binary_Translator
+
 BIN      = ./bin/
 SRCDIR   = ./src/
 BUILDDIR = ./build/
@@ -23,7 +25,7 @@ LIBS = $(addsuffix /*.a, $(LIBSDIR))
 all: $(DEPS) $(OBJ) $(LIBSDIR)
 	@mkdir -p $(BIN)
 	@echo "Linking project..."
-	@$(CC) $(OBJ) $(LIBS) -o $(BIN)Binary_Translator.out
+	@$(CC) $(OBJ) $(LIBS) -o $(BIN)$(PROJECT_NAME).out
 
 $(LIBSDIR):
 	@$(MAKE) -C $@ --no-print-directory -f Makefile.mak
@@ -45,6 +47,6 @@ $(BUILDDIR)%.d: $(SRCDIR)%.c
 clean:
 	rm -rf $(OBJ) $(DEPS)
 
-run: $(BIN)Binary_Translator.out
+run: $(BIN)$(PROJECT_NAME).out
 	@echo "Running \"$<\"..."
-	@$(BIN)Binary_Translator.out $(IN)
+	@$(BIN)$(PROJECT_NAME).out $(IN)
